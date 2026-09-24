@@ -32,10 +32,25 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# Environment secrets
+# Environment secrets & credentials
 .env
 .env.local
 .env.*.local
+*.pem
+*.key
+
+# Databases & Local Storage
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+openintel.db
+openintel.db*
+openintel_pgdata/
+postgres_data/
+data/db/
 
 # Node & Frontend
 node_modules/
@@ -44,17 +59,20 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dist/
+src/ui/dist/
+src/ui/node_modules/
 
-# OSINT Data & Exports
+# OSINT Data, Raw Blobs & Exports
 data/exports/*
 !data/exports/.gitkeep
 data/raw/*
 !data/raw/.gitkeep
 
-# IDEs & System
+# IDEs & Operating System
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
 Thumbs.db
+Desktop.ini
