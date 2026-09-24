@@ -52,6 +52,9 @@ openintel_pgdata/
 postgres_data/
 data/db/
 
+# Allow sample database for repository onboarding
+!openintel_sample.db
+
 # Node & Frontend
 node_modules/
 npm-debug.log*
