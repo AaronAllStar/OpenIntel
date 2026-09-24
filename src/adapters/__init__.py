@@ -1,0 +1,1 @@
+# OpenIntel Adapters Package

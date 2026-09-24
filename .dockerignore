@@ -1,0 +1,10 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.git
+.pytest_cache
+.ruff_cache
+openintel.db
+src/ui/node_modules
+src/ui/dist
