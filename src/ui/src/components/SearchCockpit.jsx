@@ -11,16 +11,11 @@ import {
   ChevronDown
 } from "lucide-react";
 import { COUNTRIES } from "../data/countries";
-
-export const SEARCH_MODES = [
-  { id: "person", label: "Persona (Nombre y Apellido)", icon: User, kind: "person_name" },
-  { id: "phone", label: "Teléfono con País", icon: Phone, kind: "phone" },
-  { id: "location", label: "País / Ciudad", icon: MapPin, kind: "location" },
-  { id: "id", label: "Documento de Identidad", icon: Fingerprint, kind: "national_id" },
-  { id: "digital", label: "Usuario / Email / Red", icon: Globe, kind: "username" },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 export default function SearchCockpit({ onTargetChange, activeMode, setActiveMode }) {
+  const { t, lang } = useLanguage();
+
   // Mode 1: Person
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -53,21 +48,21 @@ export default function SearchCockpit({ onTargetChange, activeMode, setActiveMod
       onTargetChange({
         kind: "person_name",
         value: fullTarget,
-        suggestedName: `Persona: ${fullName}` + (dom ? ` (${dom})` : ""),
+        suggestedName: (lang === "es" ? `Persona: ${fullName}` : `Person: ${fullName}`) + (dom ? ` (${dom})` : ""),
       });
     }
   };
 
-  const updatePhone = (country, number) => {
+  const updatePhone = (country, num) => {
     setSelectedCountry(country);
-    setRawPhoneNumber(number);
-    const cleanDigits = number.replace(/[^0-9]/g, "");
-    if (cleanDigits) {
-      const e164 = `${country.dial}${cleanDigits}`;
+    setRawPhoneNumber(num);
+    const cleanNum = num.replace(/[\s\-\(\)]/g, "");
+    if (cleanNum) {
+      const e164 = `${country.dial}${cleanNum}`;
       onTargetChange({
         kind: "phone",
         value: e164,
-        suggestedName: `Teléfono: ${e164} (${country.name})`,
+        suggestedName: `${country.flag} ${e164} (${country.name})`,
       });
     }
   };
@@ -75,22 +70,25 @@ export default function SearchCockpit({ onTargetChange, activeMode, setActiveMod
   const updateLocation = (countryName, cityName) => {
     setLocationCountry(countryName);
     setCity(cityName);
-    const val = cityName.trim() ? `${cityName.trim()}, ${countryName}` : countryName;
-    onTargetChange({
-      kind: "location",
-      value: val,
-      suggestedName: `Localización: ${val}`,
-    });
+    const locString = cityName.trim() ? `${cityName.trim()}, ${countryName}` : countryName;
+    if (locString.trim()) {
+      onTargetChange({
+        kind: "location",
+        value: locString,
+        suggestedName: (lang === "es" ? `Ubicación: ${locString}` : `Location: ${locString}`),
+      });
+    }
   };
 
-  const updateId = (country, idVal) => {
+  const updateNationalId = (country, idVal) => {
     setIdCountry(country);
     setIdNumber(idVal);
-    if (idVal.trim()) {
+    const trimmed = idVal.trim();
+    if (trimmed) {
       onTargetChange({
         kind: "national_id",
-        value: idVal.trim(),
-        suggestedName: `${country.idName}: ${idVal.trim()} (${country.name})`,
+        value: trimmed,
+        suggestedName: `${country.flag} ${country.code}:${trimmed} (${country.idName})`,
       });
     }
   };
@@ -98,241 +96,290 @@ export default function SearchCockpit({ onTargetChange, activeMode, setActiveMod
   const updateDigital = (kind, val) => {
     setDigitalKind(kind);
     setDigitalValue(val);
-    if (val.trim()) {
+    const trimmed = val.trim();
+    if (trimmed) {
       onTargetChange({
-        kind: kind,
-        value: val.trim(),
-        suggestedName: `${kind.toUpperCase()}: ${val.trim()}`,
+        kind,
+        value: trimmed,
+        suggestedName: `${kind.toUpperCase()}: ${trimmed}`,
       });
     }
   };
 
+  const searchModes = [
+    { id: "person", label: t("modePerson"), icon: User, kind: "person_name" },
+    { id: "phone", label: t("modePhone"), icon: Phone, kind: "phone" },
+    { id: "location", label: t("modeLocation"), icon: MapPin, kind: "location" },
+    { id: "id", label: t("modeId"), icon: Fingerprint, kind: "national_id" },
+    { id: "digital", label: t("modeDigital"), icon: Globe, kind: "username" },
+  ];
+
   return (
-    <div className="space-y-4">
-      {/* Mode Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 p-1.5 rounded-xl bg-slate-900/80 border border-slate-800">
-        {SEARCH_MODES.map((mode) => {
-          const Icon = mode.icon;
-          const isActive = activeMode === mode.id;
+    <div className="space-y-6 text-left">
+      {/* Search Mode Navigation Tabs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {searchModes.map((m) => {
+          const Icon = m.icon;
+          const isActive = activeMode === m.id;
           return (
             <button
-              key={mode.id}
+              key={m.id}
               type="button"
-              onClick={() => setActiveMode(mode.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
+              id={`search-mode-${m.id}-btn`}
+              onClick={() => {
+                setActiveMode(m.id);
+                if (m.id === "person") updatePerson(firstName, lastName, personDomain);
+                if (m.id === "phone") updatePhone(selectedCountry, rawPhoneNumber);
+                if (m.id === "location") updateLocation(locationCountry, city);
+                if (m.id === "id") updateNationalId(idCountry, idNumber);
+                if (m.id === "digital") updateDigital(digitalKind, digitalValue);
+              }}
+              className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all text-left ${
                 isActive
-                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent"
+                  ? "bg-cyan-500/15 border-cyan-500/50 text-cyan-300 shadow-md shadow-cyan-500/10"
+                  : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? "text-cyan-400" : "text-slate-500"}`} />
-              <span>{mode.label}</span>
+              <Icon size={16} className={isActive ? "text-cyan-400" : "text-slate-400"} />
+              <span className="truncate">{m.label}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Mode 1: Person (Nombre y Apellido) */}
+      {/* Mode 1: Person Name & Corporate Domain */}
       {activeMode === "person" && (
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-3 animate-fadeIn">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("personFirstLabel")} <span className="text-rose-400">*</span>
+              </label>
               <input
                 type="text"
-                placeholder="ej. Elena, Carlos"
+                required
+                placeholder={t("personFirstPlaceholder")}
                 value={firstName}
                 onChange={(e) => updatePerson(e.target.value, lastName, personDomain)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                className="input-field"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Apellido(s)</label>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("personLastLabel")} <span className="text-rose-400">*</span>
+              </label>
               <input
                 type="text"
-                placeholder="ej. Navarro, Gómez"
+                required
+                placeholder={t("personLastPlaceholder")}
                 value={lastName}
                 onChange={(e) => updatePerson(firstName, e.target.value, personDomain)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+                className="input-field"
               />
             </div>
           </div>
+
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Empresa u Organización (Opcional para derivación de correo corporativo)
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              {t("personDomainLabel")}
             </label>
-            <input
-              type="text"
-              placeholder="ej. acme.com o Banco Santander"
-              value={personDomain}
-              onChange={(e) => updatePerson(firstName, lastName, e.target.value)}
-              className="w-full px-3.5 py-2 rounded-lg bg-slate-950/70 border border-slate-800 text-slate-200 text-xs focus:border-cyan-400 focus:outline-none"
-            />
+            <div className="relative">
+              <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder={t("personDomainPlaceholder")}
+                value={personDomain}
+                onChange={(e) => updatePerson(firstName, lastName, e.target.value)}
+                className="input-field pl-9"
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5">
+              💡 {t("personHint")}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Mode 2: Phone (Teléfono con selector de país) */}
+      {/* Mode 2: Phone with Country Code */}
       {activeMode === "phone" && (
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-3 animate-fadeIn">
-          <label className="block text-xs font-semibold text-slate-300">Número de Teléfono Internacional</label>
-          <div className="flex gap-2">
-            {/* Country Selector */}
-            <div className="relative w-48 shrink-0">
-              <select
-                value={selectedCountry.code}
-                onChange={(e) => {
-                  const found = COUNTRIES.find((c) => c.code === e.target.value) || COUNTRIES[0];
-                  updatePhone(found, rawPhoneNumber);
-                }}
-                className="w-full appearance-none px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-medium focus:border-cyan-400 focus:outline-none cursor-pointer pr-8"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code} className="bg-slate-900 text-white">
-                    {c.flag} {c.name} ({c.dial})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("phoneCountryLabel")}
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedCountry.code}
+                  onChange={(e) => {
+                    const c = COUNTRIES.find((x) => x.code === e.target.value) || COUNTRIES[0];
+                    updatePhone(c, rawPhoneNumber);
+                  }}
+                  className="input-field pr-8 appearance-none bg-slate-900 cursor-pointer"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.name} ({c.dial})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
-            {/* Phone Input */}
-            <div className="relative flex-1">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 text-xs font-mono font-bold">
-                {selectedCountry.dial}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("phoneInputLabel")} <span className="text-rose-400">*</span>
+              </label>
+              <div className="flex rounded-xl bg-slate-950/80 border border-slate-700/80 overflow-hidden focus-within:border-cyan-400">
+                <span className="flex items-center px-3.5 bg-slate-900 text-xs font-mono font-bold text-cyan-400 border-r border-slate-800">
+                  {selectedCountry.dial}
+                </span>
+                <input
+                  type="text"
+                  required
+                  placeholder={t("phoneInputPlaceholder")}
+                  value={rawPhoneNumber}
+                  onChange={(e) => updatePhone(selectedCountry, e.target.value)}
+                  className="w-full bg-transparent px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none font-mono"
+                />
               </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            💡 {t("phoneHint")}
+          </p>
+        </div>
+      )}
+
+      {/* Mode 3: Location */}
+      {activeMode === "location" && (
+        <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("locCountryLabel")}
+              </label>
+              <div className="relative">
+                <select
+                  value={locationCountry}
+                  onChange={(e) => updateLocation(e.target.value, city)}
+                  className="input-field pr-8 appearance-none bg-slate-900 cursor-pointer"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.name}>
+                      {c.flag} {c.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("locCityLabel")}
+              </label>
               <input
-                type="tel"
-                placeholder="612 345 678 o 202 555 0143"
-                value={rawPhoneNumber}
-                onChange={(e) => updatePhone(selectedCountry, e.target.value)}
-                className="w-full pl-12 pr-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 font-mono"
+                type="text"
+                placeholder={t("locCityPlaceholder")}
+                value={city}
+                onChange={(e) => updateLocation(locationCountry, e.target.value)}
+                className="input-field"
               />
             </div>
           </div>
           <p className="text-[11px] text-slate-400">
-            Formato normalizado automáticamente a E.164 para WhatsApp, Telegram y PhoneInfoga.
+            💡 {t("locHint")}
           </p>
         </div>
       )}
 
-      {/* Mode 3: Location (País / Ciudad) */}
-      {activeMode === "location" && (
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-3 animate-fadeIn">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">País</label>
-              <select
-                value={locationCountry}
-                onChange={(e) => updateLocation(e.target.value, city)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-medium focus:border-cyan-400 focus:outline-none"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.name} className="bg-slate-900 text-white">
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Ciudad / Región</label>
-              <input
-                type="text"
-                placeholder="ej. Madrid, Barcelona, Bogotá, CDMX"
-                value={city}
-                onChange={(e) => updateLocation(locationCountry, e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mode 4: ID (Documento de Identidad por País) */}
+      {/* Mode 4: National ID & Tax Number */}
       {activeMode === "id" && (
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-3 animate-fadeIn">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">País Emisor</label>
-              <select
-                value={idCountry.code}
-                onChange={(e) => {
-                  const found = COUNTRIES.find((c) => c.code === e.target.value) || COUNTRIES[0];
-                  updateId(found, idNumber);
-                }}
-                className="w-full px-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-medium focus:border-cyan-400 focus:outline-none"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code} className="bg-slate-900 text-white">
-                    {c.flag} {c.name} ({c.idName})
-                  </option>
-                ))}
-              </select>
+        <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("idCountryLabel")}
+              </label>
+              <div className="relative">
+                <select
+                  value={idCountry.code}
+                  onChange={(e) => {
+                    const c = COUNTRIES.find((x) => x.code === e.target.value) || COUNTRIES[0];
+                    updateNationalId(c, idNumber);
+                  }}
+                  className="input-field pr-8 appearance-none bg-slate-900 cursor-pointer"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.name} ({c.idName})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Número ({idCountry.idName})
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {t("idNumberLabel")} <span className="text-rose-400">*</span>
               </label>
               <input
                 type="text"
-                placeholder={`ej. ${idCountry.idExample}`}
+                required
+                placeholder={idCountry.idExample || t("idNumberPlaceholder")}
                 value={idNumber}
-                onChange={(e) => updateId(idCountry, e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 font-mono"
+                onChange={(e) => updateNationalId(idCountry, e.target.value)}
+                className="input-field font-mono uppercase"
               />
             </div>
           </div>
-          <p className="text-[11px] text-cyan-400/90 font-mono">
-            Algoritmo de comprobación: Verificación de dígito de control por registro oficial ({idCountry.name}).
+          <p className="text-[11px] text-slate-400">
+            ⚡ {t("idHint")}
           </p>
         </div>
       )}
 
-      {/* Mode 5: Digital (Usuario / Email / Red / Repositorio) */}
+      {/* Mode 5: Digital Asset / Username / Email / Domain */}
       {activeMode === "digital" && (
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-3 animate-fadeIn">
-          <div className="flex flex-wrap gap-2 mb-2">
-            {[
-              { id: "username", label: "Usuario" },
-              { id: "email", label: "Email" },
-              { id: "domain", label: "Dominio" },
-              { id: "repository", label: "Repositorio Git" },
-              { id: "organization", label: "Organización" },
-              { id: "ip", label: "Dirección IP" },
-              { id: "url", label: "URL Web" },
-            ].map((dk) => (
-              <button
-                key={dk.id}
-                type="button"
-                onClick={() => updateDigital(dk.id, digitalValue)}
-                className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                  digitalKind === dk.id
-                    ? "bg-cyan-500/30 text-cyan-300 border border-cyan-400/50"
-                    : "bg-slate-800 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {dk.label}
-              </button>
-            ))}
-          </div>
+        <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-1">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {lang === "es" ? "Tipo de Activo Digital" : "Digital Asset Type"}
+              </label>
+              <div className="relative">
+                <select
+                  value={digitalKind}
+                  onChange={(e) => updateDigital(e.target.value, digitalValue)}
+                  className="input-field pr-8 appearance-none bg-slate-900 cursor-pointer"
+                >
+                  <option value="username">{t("digitalKindUsername")}</option>
+                  <option value="email">{t("digitalKindEmail")}</option>
+                  <option value="domain">{t("digitalKindDomain")}</option>
+                  <option value="url">{t("digitalKindUrl")}</option>
+                  <option value="ip">{t("digitalKindIp")}</option>
+                  <option value="repository">{t("digitalKindRepo")}</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Valor del Objetivo ({digitalKind})
-            </label>
-            <input
-              type="text"
-              placeholder={
-                digitalKind === "username" ? "ej. shadow_broker, janesmith" :
-                digitalKind === "email" ? "ej. contact@target.com" :
-                digitalKind === "domain" ? "ej. company.com" :
-                digitalKind === "repository" ? "ej. torvalds/linux o https://github.com/..." :
-                "ej. objetivo a investigar"
-              }
-              value={digitalValue}
-              onChange={(e) => updateDigital(digitalKind, e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 font-mono"
-            />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                {lang === "es" ? "Valor del Objetivo" : "Target Value"} <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder={t("digitalValuePlaceholder")}
+                value={digitalValue}
+                onChange={(e) => updateDigital(digitalKind, e.target.value)}
+                className="input-field font-mono"
+              />
+            </div>
           </div>
         </div>
       )}

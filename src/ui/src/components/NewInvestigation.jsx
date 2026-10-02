@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 import SearchCockpit from "./SearchCockpit";
 import FacetSelector from "./FacetSelector";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function NewInvestigation({ onSubmit, onCancel }) {
+  const { t, lang } = useLanguage();
   const [activeMode, setActiveMode] = useState("person");
   const [targetKind, setTargetKind] = useState("person_name");
   const [targetValue, setTargetValue] = useState("");
@@ -39,7 +41,7 @@ export default function NewInvestigation({ onSubmit, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!targetValue.trim()) {
-      setError("Por favor define un valor o parámetro válido para iniciar la investigación.");
+      setError(t("newErrorEmpty"));
       return;
     }
 
@@ -47,8 +49,9 @@ export default function NewInvestigation({ onSubmit, onCancel }) {
     setSubmitting(true);
 
     try {
+      const defaultPrefix = lang === "es" ? "Investigación" : "Investigation";
       const payload = {
-        name: investigationName.trim() || suggestedName || `Investigación: ${targetValue.trim()}`,
+        name: investigationName.trim() || suggestedName || `${defaultPrefix}: ${targetValue.trim()}`,
         target_kind: targetKind,
         target_value: targetValue.trim(),
         investigation_type: investigationType,
@@ -63,223 +66,224 @@ export default function NewInvestigation({ onSubmit, onCancel }) {
 
       await onSubmit(payload);
     } catch (err) {
-      setError(err.message || "Error al iniciar la investigación");
+      setError(err.message || "Failed to start investigation");
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-6 animate-fadeIn text-left">
-      <div className="glass-panel p-6 sm:p-8 relative border border-slate-700/60 shadow-2xl">
-        {/* Glow corner indicator */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="max-w-4xl mx-auto py-4 text-left animate-fadeIn">
+      {/* Header Banner */}
+      <div className="flex items-center justify-between pb-6 mb-6 border-b border-slate-800">
+        <div>
+          <h1 className="text-2xl font-black text-white tracking-wide flex items-center gap-2">
+            <Compass className="text-cyan-400" size={24} />
+            {t("newTitle")}
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            {t("newSubtitle")}
+          </p>
+        </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Radar className="w-5 h-5 text-cyan-400 animate-pulse" />
-              <h2 className="text-2xl font-bold text-white tracking-wide">
-                Centro de Inteligencia & Exploración
-              </h2>
-            </div>
-            <p className="text-xs text-slate-400">
-              Selecciona el vector de búsqueda y configura los motores automatizados de OpenIntel.
-            </p>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 transition-colors"
+        >
+          {t("newCancelBtn")}
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Step 1: Select Target & Mode */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+            <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-xs font-mono">
+              1
+            </span>
+            {t("newStep1")}
           </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-[11px] text-cyan-300 font-mono">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            27 Motores Activos
+
+          <SearchCockpit
+            onTargetChange={handleTargetChange}
+            activeMode={activeMode}
+            setActiveMode={setActiveMode}
+          />
+        </div>
+
+        {/* Step 2: Investigation Name & Type */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+            <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-xs font-mono">
+              2
+            </span>
+            {t("newStep2")}
+          </div>
+
+          <div className="glass-panel p-5 border border-slate-800 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  {t("newInvestNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  placeholder={suggestedName || t("newInvestNamePlaceholder")}
+                  value={investigationName}
+                  onChange={(e) => setInvestigationName(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  {t("newInvestTypeLabel")}
+                </label>
+                <select
+                  value={investigationType}
+                  onChange={(e) => setInvestigationType(e.target.value)}
+                  className="input-field bg-slate-900"
+                >
+                  <option value="quick">{t("newTypeQuick")}</option>
+                  <option value="deep">{t("newTypeDeep")}</option>
+                  <option value="passive">{t("newTypePassive")}</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
-            <AlertTriangle size={16} className="text-rose-400 shrink-0 mt-0.5" />
-            <div>
-              <strong>Error de Validación:</strong> {error}
+        {/* Step 3: Granular Engine & Facet Selection */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 flex items-center justify-center text-xs font-mono">
+                3
+              </span>
+              {t("presetsTitle")}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium"
+            >
+              <Sliders size={14} />
+              <span>{t("newAdvancedSettings")}</span>
+              {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          </div>
+
+          <div className="glass-panel p-5 border border-slate-800">
+            <FacetSelector
+              selectedEngines={selectedEngines}
+              onSelectionChange={setSelectedEngines}
+            />
+          </div>
+        </div>
+
+        {/* Advanced Settings Collapsible Drawer */}
+        {showAdvanced && (
+          <div className="glass-panel p-5 border border-slate-800 space-y-4 animate-fadeIn">
+            <div className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+              {t("newAdvancedSettings")}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  {t("newTimeoutLabel")}
+                </label>
+                <input
+                  type="number"
+                  min="5000"
+                  max="120000"
+                  step="5000"
+                  value={timeoutMs}
+                  onChange={(e) => setTimeoutMs(Number(e.target.value))}
+                  className="input-field font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">
+                  {t("newMaxResultsLabel")}
+                </label>
+                <input
+                  type="number"
+                  min="50"
+                  max="2000"
+                  step="50"
+                  value={maxResults}
+                  onChange={(e) => setMaxResults(Number(e.target.value))}
+                  className="input-field font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-slate-850">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={storeRaw}
+                  onChange={(e) => setStoreRaw(e.target.checked)}
+                  className="rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0"
+                />
+                <span>{t("newStoreRawLabel")}</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-rose-300">
+                <input
+                  type="checkbox"
+                  checked={allowPrivate}
+                  onChange={(e) => setAllowPrivate(e.target.checked)}
+                  className="rounded bg-slate-900 border-slate-700 text-rose-500 focus:ring-0"
+                />
+                <span>{t("newAllowPrivateLabel")}</span>
+              </label>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 1. Multi-modal Search Cockpit */}
-          <div>
-            <label className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[11px]">
-                1
-              </span>
-              Modo y Parámetros del Objetivo
-            </label>
-            <SearchCockpit
-              activeMode={activeMode}
-              setActiveMode={setActiveMode}
-              onTargetChange={handleTargetChange}
-            />
+        {/* Validation / Execution Errors */}
+        {error && (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-3">
+            <AlertTriangle size={18} className="shrink-0 text-rose-400" />
+            <span>{error}</span>
           </div>
+        )}
 
-          {/* Optional Title Customization */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">
-              Nombre de la Operación / Caso (Opcional)
-            </label>
-            <input
-              type="text"
-              placeholder={suggestedName || "ej. Operación Fénix - Auditoría Corporativa"}
-              value={investigationName}
-              onChange={(e) => setInvestigationName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/60 border border-slate-800 text-white text-xs placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
-            />
-          </div>
+        {/* Action Controls */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-xl border border-slate-800 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-850 transition-colors"
+          >
+            {t("newCancelBtn")}
+          </button>
 
-          {/* 2. Investigation Depth */}
-          <div>
-            <label className="block text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[11px]">
-                2
-              </span>
-              Profundidad de Reconocimiento
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                id="investigation-type-quick"
-                onClick={() => setInvestigationType("quick")}
-                className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
-                  investigationType === "quick"
-                    ? "bg-cyan-500/15 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20"
-                    : "bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                }`}
-              >
-                <div className="font-bold text-white mb-0.5 flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-cyan-400" />
-                  Análisis Rápido (Recomendado)
-                </div>
-                <div className="text-[11px] text-slate-400 leading-snug">
-                  Consultas concurrentes en motores prioritarios (menos de 20s).
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="investigation-type-full"
-                onClick={() => setInvestigationType("full")}
-                className={`p-3.5 rounded-xl border text-left text-xs transition-all ${
-                  investigationType === "full"
-                    ? "bg-cyan-500/15 border-cyan-400 text-cyan-200 shadow-sm shadow-cyan-500/20"
-                    : "bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                }`}
-              >
-                <div className="font-bold text-white mb-0.5 flex items-center gap-1.5">
-                  <Radar className="w-3.5 h-3.5 text-cyan-400" />
-                  Reconocimiento Exhaustivo
-                </div>
-                <div className="text-[11px] text-slate-400 leading-snug">
-                  Correlación completa de subdominios, fugas, repos y metadatos.
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* 3. Selección Modular de Motores y Facetas ("Poder seleccionar lo que necesito") */}
-          <div className="border-t border-slate-800/80 pt-4">
-            <button
-              type="button"
-              id="toggle-advanced-settings-btn"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between w-full py-2.5 px-3 rounded-lg bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-cyan-300 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Sliders size={14} className="text-cyan-400" />
-                <span>Personalizar Motores y Facetas ({selectedEngines.length === 0 ? "Automático / Todos" : `${selectedEngines.length} seleccionados`})</span>
-              </div>
-              {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-
-            {showAdvanced && (
-              <div className="mt-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-4 animate-fadeIn">
-                <FacetSelector
-                  selectedEngines={selectedEngines}
-                  onSelectionChange={setSelectedEngines}
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Límite de tiempo: {timeoutMs / 1000}s
-                    </label>
-                    <input
-                      type="range"
-                      min="10000"
-                      max="60000"
-                      step="5000"
-                      value={timeoutMs}
-                      onChange={(e) => setTimeoutMs(Number(e.target.value))}
-                      className="w-full accent-cyan-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Resultados máximos: {maxResults}
-                    </label>
-                    <input
-                      type="range"
-                      min="100"
-                      max="1000"
-                      step="100"
-                      value={maxResults}
-                      onChange={(e) => setMaxResults(Number(e.target.value))}
-                      className="w-full accent-cyan-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
-                  <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={storeRaw}
-                      onChange={(e) => setStoreRaw(e.target.checked)}
-                      className="rounded border-slate-700 text-cyan-500 focus:ring-cyan-500"
-                    />
-                    <span>Almacenar respuestas en bruto de los motores</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={allowPrivate}
-                      onChange={(e) => setAllowPrivate(e.target.checked)}
-                      className="rounded border-slate-700 text-cyan-500 focus:ring-cyan-500"
-                    />
-                    <span>Permitir IPs privadas (desactiva protección SSRF para redes de laboratorio)</span>
-                  </label>
-                </div>
-              </div>
+          <button
+            type="submit"
+            id="start-investigation-submit-btn"
+            disabled={submitting}
+            className="btn-primary py-2.5 px-6 text-xs font-bold flex items-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <Radar size={16} className="animate-spin" />
+                <span>{t("newSubmittingBtn")}</span>
+              </>
+            ) : (
+              <>
+                <Play size={16} />
+                <span>{t("newStartBtn")}</span>
+              </>
             )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="btn-secondary text-xs"
-              disabled={submitting}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              id="start-investigation-submit-btn"
-              disabled={submitting}
-              className="btn-primary text-xs px-6 py-2.5 font-bold"
-            >
-              <Play size={15} />
-              {submitting ? "Desplegando Motores..." : "Iniciar Investigación"}
-            </button>
-          </div>
-        </form>
-      </div>
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

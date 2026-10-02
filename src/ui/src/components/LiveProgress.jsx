@@ -5,18 +5,10 @@ import {
   Circle, 
   Terminal, 
   ChevronDown, 
-  ChevronUp,
-  Activity,
+  ChevronUp, 
   ArrowRight
 } from "lucide-react";
-
-const STAGES = [
-  { id: "validate", label: "Target Validated & Normalized", minPct: 5 },
-  { id: "dispatch", label: "Engine Discovery Initiated", minPct: 20 },
-  { id: "profiles", label: "Profile & Identity Resolution", minPct: 50 },
-  { id: "correlate", label: "Relationship & Link Correlation", minPct: 80 },
-  { id: "complete", label: "Investigation Ready for Review", minPct: 100 },
-];
+import { useLanguage } from "../context/LanguageContext";
 
 export default function LiveProgress({
   progressPct = 10,
@@ -25,7 +17,16 @@ export default function LiveProgress({
   status = "working",
   onViewResults,
 }) {
+  const { t, lang } = useLanguage();
   const [showLogs, setShowLogs] = useState(false);
+
+  const stages = [
+    { id: "validate", label: t("progressStepValidate"), minPct: 5 },
+    { id: "dispatch", label: t("progressStepDispatch"), minPct: 20 },
+    { id: "profiles", label: t("progressStepProfiles"), minPct: 50 },
+    { id: "correlate", label: t("progressStepCorrelate"), minPct: 80 },
+    { id: "complete", label: t("progressStepComplete"), minPct: 100 },
+  ];
 
   return (
     <div className="max-w-2xl mx-auto py-8 animate-fadeIn text-left">
@@ -36,7 +37,7 @@ export default function LiveProgress({
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
             <span className="pulse-indicator" />
-            <h2 className="text-xl font-bold text-white">Reconnaissance in Progress</h2>
+            <h2 className="text-xl font-bold text-white">{t("progressTitle")}</h2>
           </div>
           <span className="text-xs px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-400 font-mono font-semibold border border-sky-500/30">
             {Math.round(progressPct)}%
@@ -53,88 +54,95 @@ export default function LiveProgress({
 
         {/* UX Stepper Checklist */}
         <div className="space-y-4 mb-8">
-          {STAGES.map((stage, idx) => {
+          {stages.map((stage, idx) => {
             const isCompleted = progressPct >= stage.minPct || status === "review" || status === "final";
-            const isCurrent = !isCompleted && (idx === 0 || progressPct >= STAGES[idx - 1].minPct);
+            const isCurrent = !isCompleted && (idx === 0 || progressPct >= stages[idx - 1].minPct);
 
             return (
               <div
                 key={stage.id}
-                className={`flex items-center gap-3.5 p-3 rounded-xl transition-all ${
-                  isCurrent
-                    ? "bg-sky-500/10 border border-sky-500/30 text-sky-300"
-                    : isCompleted
-                    ? "text-slate-300"
-                    : "text-slate-600"
+                className={`flex items-center gap-3.5 transition-opacity ${
+                  isCompleted ? "opacity-100" : isCurrent ? "opacity-100" : "opacity-40"
                 }`}
               >
                 {isCompleted ? (
                   <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
                 ) : isCurrent ? (
-                  <CircleDashed size={18} className="text-sky-400 shrink-0 animate-spin" />
+                  <CircleDashed size={18} className="text-sky-400 animate-spin shrink-0" />
                 ) : (
-                  <Circle size={18} className="text-slate-700 shrink-0" />
+                  <Circle size={18} className="text-slate-600 shrink-0" />
                 )}
-
-                <div className="flex-1">
-                  <div className="text-xs font-semibold">{stage.label}</div>
-                  {isCurrent && (
-                    <div className="text-[11px] text-sky-400 font-mono mt-0.5 animate-pulse">
-                      {currentStep}
-                    </div>
-                  )}
-                </div>
+                <span
+                  className={`text-sm ${
+                    isCurrent
+                      ? "text-sky-400 font-medium font-mono"
+                      : isCompleted
+                      ? "text-slate-200 line-through text-slate-400"
+                      : "text-slate-500"
+                  }`}
+                >
+                  {stage.label}
+                </span>
               </div>
             );
           })}
         </div>
 
-        {/* Completed Action */}
-        {(status === "review" || status === "final") && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between animate-fadeIn">
-            <div className="text-xs text-emerald-300 font-medium">
-              All selected engines completed execution. Findings are normalized.
-            </div>
-            <button
-              id="view-investigation-results-btn"
-              onClick={onViewResults}
-              className="btn-primary text-xs py-2 px-4"
-            >
-              Explore Findings
-              <ArrowRight size={14} />
-            </button>
+        {/* Current Dynamic Telemetry Step */}
+        <div className="bg-slate-950/80 rounded-xl p-4 border border-white/5 mb-6">
+          <div className="text-[11px] font-mono text-slate-500 uppercase tracking-wider mb-1">
+            {lang === "es" ? "Paso Operativo Actual" : "Current Operational Step"}
           </div>
-        )}
+          <div className="text-sm font-mono text-cyan-300 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span>{currentStep}</span>
+          </div>
+        </div>
 
-        {/* Collapsible Execution Logs */}
-        <div className="border-t border-white/5 pt-4">
+        {/* Collapsible SSE Raw Terminal Logs */}
+        <div className="space-y-2">
           <button
             type="button"
             onClick={() => setShowLogs(!showLogs)}
-            className="flex items-center justify-between w-full text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center justify-between w-full p-2.5 rounded-lg bg-slate-900/50 border border-white/5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition-colors"
           >
-            <div className="flex items-center gap-2">
-              <Terminal size={14} className="text-sky-400" />
-              <span>Technical Execution Stream ({logs.length} events)</span>
+            <div className="flex items-center gap-2 font-mono">
+              <Terminal size={14} className="text-slate-400" />
+              <span>{t("progressLiveLogs")} ({logs.length})</span>
             </div>
-            {showLogs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
           {showLogs && (
-            <div className="mt-3 p-4 rounded-xl bg-black/60 border border-white/5 font-mono text-[11px] text-slate-400 h-44 overflow-y-auto space-y-1 select-text">
+            <div className="bg-slate-950 rounded-xl p-3 border border-white/5 font-mono text-[11px] text-slate-400 max-h-48 overflow-y-auto space-y-1">
               {logs.length === 0 ? (
-                <div className="text-slate-600">Waiting for live events...</div>
+                <div className="text-slate-600 italic">
+                  {lang === "es" ? "Esperando eventos del motor..." : "Waiting for engine events..."}
+                </div>
               ) : (
                 logs.map((log, i) => (
-                  <div key={i} className="flex gap-2">
-                    <span className="text-slate-600">[{i + 1}]</span>
-                    <span className="text-slate-300">{log}</span>
+                  <div key={i} className="leading-tight text-slate-300">
+                    <span className="text-slate-600 mr-2">›</span>
+                    {log}
                   </div>
                 ))
               )}
             </div>
           )}
         </div>
+
+        {/* Ready Action Button */}
+        {(progressPct >= 100 || status === "review" || status === "final") && (
+          <div className="mt-8 pt-6 border-t border-white/10 flex justify-end">
+            <button
+              onClick={onViewResults}
+              className="btn-primary py-3 px-6 text-sm flex items-center gap-2"
+            >
+              <span>{t("progressViewResultsBtn")}</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

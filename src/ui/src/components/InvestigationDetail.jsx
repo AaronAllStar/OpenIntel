@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import GraphView from "./GraphView";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function InvestigationDetail({
   investigation,
@@ -23,13 +24,18 @@ export default function InvestigationDetail({
   onCancel,
   onExport,
 }) {
+  const { t, lang } = useLanguage();
   const [activeTab, setActiveTab] = useState("overview"); // overview, entities, graph, evidence
   const [entityFilter, setEntityFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvidence, setSelectedEvidence] = useState(null);
 
   if (!investigation) {
-    return <div className="p-8 text-center text-slate-400">Investigation details unavailable.</div>;
+    return (
+      <div className="p-8 text-center text-slate-400">
+        {lang === "es" ? "Detalles de investigación no disponibles." : "Investigation details unavailable."}
+      </div>
+    );
   }
 
   const entities = investigation.entities || [];
@@ -53,6 +59,7 @@ export default function InvestigationDetail({
           <button
             onClick={onBack}
             className="p-2 rounded-xl bg-slate-900 border border-white/10 text-slate-400 hover:text-white transition-colors"
+            title={t("detailBackBtn")}
           >
             <ArrowLeft size={18} />
           </button>
@@ -66,7 +73,7 @@ export default function InvestigationDetail({
               </h1>
               <span
                 className={`badge ${
-                  investigation.status === "review" || investigation.status === "final"
+                  investigation.status === "review" || investigation.status === "final" || investigation.status === "completed"
                     ? "badge-supported"
                     : investigation.status === "working" || investigation.status === "running"
                     ? "badge-observed"
@@ -81,7 +88,7 @@ export default function InvestigationDetail({
               <span>·</span>
               <span className="flex items-center gap-1 font-mono text-[11px]">
                 <Clock size={12} />
-                {investigation.created_at ? new Date(investigation.created_at).toLocaleString() : "N/A"}
+                {investigation.created_at ? new Date(investigation.created_at).toLocaleString(lang === "es" ? "es-ES" : "en-US") : "N/A"}
               </span>
             </div>
           </div>
@@ -94,7 +101,7 @@ export default function InvestigationDetail({
               onClick={() => onCancel(investigation.id)}
               className="btn-secondary text-xs text-rose-400 hover:text-rose-300"
             >
-              Cancel Scan
+              {lang === "es" ? "Cancelar Escaneo" : "Cancel Scan"}
             </button>
           )}
           <button
@@ -103,7 +110,7 @@ export default function InvestigationDetail({
             className="btn-secondary text-xs"
           >
             <Download size={14} />
-            Export Markdown
+            {t("detailExportMd")}
           </button>
           <button
             id="export-json-report-btn"
@@ -111,7 +118,7 @@ export default function InvestigationDetail({
             className="btn-secondary text-xs"
           >
             <FileText size={14} />
-            Export JSON
+            {t("detailExportJson")}
           </button>
         </div>
       </div>
@@ -119,10 +126,10 @@ export default function InvestigationDetail({
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-white/5 pb-2">
         {[
-          { id: "overview", label: "Overview", icon: Layers, count: null },
-          { id: "entities", label: "Entities", icon: ShieldCheck, count: entities.length },
-          { id: "graph", label: "Relationship Graph", icon: Network, count: relationships.length },
-          { id: "evidence", label: "Evidence Provenance", icon: Database, count: evidence.length },
+          { id: "overview", label: lang === "es" ? "Resumen" : "Overview", icon: Layers, count: null },
+          { id: "entities", label: t("detailTabEntities"), icon: ShieldCheck, count: entities.length },
+          { id: "graph", label: t("detailTabGraph"), icon: Network, count: relationships.length },
+          { id: "evidence", label: t("detailTabEvidence"), icon: Database, count: evidence.length },
         ].map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -155,34 +162,44 @@ export default function InvestigationDetail({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="glass-panel p-5">
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-                Discovered Entities
+                {t("detailTabEntities")}
               </div>
               <div className="text-2xl font-bold text-white">{entities.length}</div>
-              <div className="text-xs text-slate-500 mt-1">Across multiple categories</div>
+              <div className="text-xs text-slate-500 mt-1">
+                {lang === "es" ? "En múltiples categorías" : "Across multiple categories"}
+              </div>
             </div>
 
             <div className="glass-panel p-5">
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-                Linked Relationships
+                {lang === "es" ? "Relaciones Vinculadas" : "Linked Relationships"}
               </div>
               <div className="text-2xl font-bold text-sky-400">{relationships.length}</div>
-              <div className="text-xs text-slate-500 mt-1">Direct and supported links</div>
+              <div className="text-xs text-slate-500 mt-1">
+                {lang === "es" ? "Vínculos directos y soportados" : "Direct and supported links"}
+              </div>
             </div>
 
             <div className="glass-panel p-5">
               <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">
-                Evidence Provenance Records
+                {lang === "es" ? "Registros de Evidencia" : "Evidence Provenance Records"}
               </div>
               <div className="text-2xl font-bold text-emerald-400">{evidence.length}</div>
-              <div className="text-xs text-slate-500 mt-1">Timestamped observations</div>
+              <div className="text-xs text-slate-500 mt-1">
+                {lang === "es" ? "Observaciones fechadas" : "Timestamped observations"}
+              </div>
             </div>
           </div>
 
           {/* Key Relationships Highlight */}
           <div className="glass-panel p-6">
-            <h2 className="text-sm font-bold text-white mb-4">Top Confirmed Associations</h2>
+            <h2 className="text-sm font-bold text-white mb-4">
+              {lang === "es" ? "Principales Asociaciones Confirmadas" : "Top Confirmed Associations"}
+            </h2>
             {relationships.length === 0 ? (
-              <div className="text-xs text-slate-500 py-4">No associations computed yet.</div>
+              <div className="text-xs text-slate-500 py-4">
+                {lang === "es" ? "No se han calculado asociaciones todavía." : "No associations computed yet."}
+              </div>
             ) : (
               <div className="space-y-3">
                 {relationships.slice(0, 5).map((rel) => (
@@ -195,7 +212,7 @@ export default function InvestigationDetail({
                         {rel.reasoning || `${rel.predicate} relation established`}
                       </div>
                       <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                        Predicate: <span className="text-sky-400">{rel.predicate}</span>
+                        {lang === "es" ? "Predicado" : "Predicate"}: <span className="text-sky-400">{rel.predicate}</span>
                       </div>
                     </div>
                     <span className="badge badge-supported text-[10px]">{rel.confidence}</span>
@@ -223,7 +240,7 @@ export default function InvestigationDetail({
                       : "bg-slate-900/70 text-slate-400 hover:text-slate-200 border border-white/5"
                   }`}
                 >
-                  {k}
+                  {k === "all" ? (lang === "es" ? "Todos" : "All") : k}
                 </button>
               ))}
             </div>
@@ -232,7 +249,7 @@ export default function InvestigationDetail({
               <Search size={14} className="text-slate-400" />
               <input
                 type="text"
-                placeholder="Search entities..."
+                placeholder={lang === "es" ? "Buscar entidades..." : "Search entities..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none w-full font-mono"
@@ -296,20 +313,22 @@ export default function InvestigationDetail({
       {activeTab === "evidence" && (
         <div className="glass-panel p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-white">Full Evidence Provenance Trail</h2>
-            <span className="text-xs text-slate-400 font-mono">{evidence.length} records</span>
+            <h2 className="text-sm font-bold text-white">{t("detailTabEvidence")}</h2>
+            <span className="text-xs text-slate-400 font-mono">
+              {evidence.length} {lang === "es" ? "registros" : "records"}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-white/5 text-slate-400 uppercase font-semibold">
-                  <th className="py-2.5 px-3">Tool</th>
-                  <th className="py-2.5 px-3">Source</th>
-                  <th className="py-2.5 px-3">Classification</th>
-                  <th className="py-2.5 px-3">Raw Observation</th>
-                  <th className="py-2.5 px-3">Confidence</th>
-                  <th className="py-2.5 px-3">Timestamp</th>
+                  <th className="py-2.5 px-3">{lang === "es" ? "Herramienta" : "Tool"}</th>
+                  <th className="py-2.5 px-3">{lang === "es" ? "Fuente" : "Source"}</th>
+                  <th className="py-2.5 px-3">{t("detailEvidenceClass")}</th>
+                  <th className="py-2.5 px-3">{t("detailEvidenceObservation")}</th>
+                  <th className="py-2.5 px-3">{t("detailEvidenceConfidence")}</th>
+                  <th className="py-2.5 px-3">{lang === "es" ? "Hora" : "Timestamp"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-mono text-slate-300">
@@ -357,8 +376,10 @@ export default function InvestigationDetail({
           <div className="glass-panel max-w-lg w-full p-6 text-left border-sky-500/30">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-base font-bold text-white">Evidence Provenance</h3>
-                <p className="text-xs text-slate-400">Captured by {selectedEvidence.tool}</p>
+                <h3 className="text-base font-bold text-white">{t("detailTabEvidence")}</h3>
+                <p className="text-xs text-slate-400">
+                  {lang === "es" ? `Capturado por ${selectedEvidence.tool}` : `Captured by ${selectedEvidence.tool}`}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedEvidence(null)}
@@ -370,35 +391,35 @@ export default function InvestigationDetail({
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-slate-500 block mb-0.5">Source:</span>
+                <span className="text-slate-500 block mb-0.5">{lang === "es" ? "Fuente" : "Source"}:</span>
                 <span className="text-white font-mono bg-slate-900 px-2 py-1 rounded">
                   {selectedEvidence.source}
                 </span>
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-0.5">Raw Observation:</span>
+                <span className="text-slate-500 block mb-0.5">{t("detailEvidenceObservation")}:</span>
                 <div className="bg-slate-950 p-3 rounded-lg border border-white/5 font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
                   {selectedEvidence.raw_observation}
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-0.5">Classification:</span>
+                <span className="text-slate-500 block mb-0.5">{t("detailEvidenceClass")}:</span>
                 <span className="font-mono text-sky-400 font-semibold">
                   {selectedEvidence.info_classification || "PUBLIC_OBSERVATION"}
                 </span>
               </div>
 
               <div>
-                <span className="text-slate-500 block mb-0.5">Confidence:</span>
+                <span className="text-slate-500 block mb-0.5">{t("detailEvidenceConfidence")}:</span>
                 <span className="badge badge-supported">{selectedEvidence.confidence}</span>
               </div>
             </div>
 
             <div className="mt-6 flex justify-end">
               <button onClick={() => setSelectedEvidence(null)} className="btn-secondary text-xs">
-                Close
+                {lang === "es" ? "Cerrar" : "Close"}
               </button>
             </div>
           </div>

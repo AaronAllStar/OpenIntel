@@ -13,6 +13,8 @@ import NewInvestigation from "./components/NewInvestigation";
 import LiveProgress from "./components/LiveProgress";
 import InvestigationDetail from "./components/InvestigationDetail";
 import EthicalNoticeModal from "./components/EthicalNoticeModal";
+import LanguageSwitcher from "./components/LanguageSwitcher";
+import { useLanguage } from "./context/LanguageContext";
 
 const API_BASE =
   typeof window !== "undefined" && window.location.origin.includes(":5173")
@@ -218,6 +220,8 @@ export default function App() {
     }
   };
 
+  const { t } = useLanguage();
+
   return (
     <div className="min-h-screen flex flex-col text-slate-100">
       {/* Top Application Header */}
@@ -235,11 +239,11 @@ export default function App() {
               <div className="text-base font-extrabold tracking-wider text-white flex items-center gap-2">
                 OPEN<span className="text-sky-400">INTEL</span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/10 text-sky-400 font-mono border border-sky-500/20">
-                  v0.1.0
+                  {t("versionBadge")}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 font-mono tracking-tight">
-                Unified OSINT Intelligence Engine
+                {t("brandTagline")}
               </p>
             </div>
           </div>
@@ -256,7 +260,7 @@ export default function App() {
               }`}
             >
               <Layers size={14} />
-              <span>Dashboard</span>
+              <span>{t("navDashboard")}</span>
             </button>
 
             <button
@@ -269,23 +273,26 @@ export default function App() {
               }`}
             >
               <PlusCircle size={14} />
-              <span>New Investigation</span>
+              <span>{t("navNewInvestigation")}</span>
             </button>
           </nav>
 
-          {/* Right Status Badge */}
+          {/* Right Status Badge & Language Selector */}
           <div className="flex items-center gap-3">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
             <button
               onClick={fetchInvestigations}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
-              title="Refresh investigations"
+              title={t("refreshTooltip")}
             >
               <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             </button>
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-white/5 text-[11px] font-mono text-slate-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400" />
-              <span>Localhost 127.0.0.1</span>
+              <span>{t("localhostBadge")}</span>
             </div>
           </div>
         </div>
@@ -334,7 +341,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-4 px-6 text-center text-xs text-slate-600 font-mono">
-        OpenIntel Personal OSINT Platform · Built for authorized investigative operations
+        {t("footerText")}
       </footer>
 
       {/* Ethical Protocol Modal */}
