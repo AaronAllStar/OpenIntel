@@ -81,9 +81,10 @@ jobs:
 
       - name: Build and install PyO3 extension
         run: |
-          maturin develop -m crates/openintel-core/Cargo.toml
+          maturin build --release -m crates/openintel-core/Cargo.toml --out dist
+          uv pip install --system dist/*.whl
 
       - name: Run Python integration tests and benchmarks
         run: |
-          uv pip install -e ".[dev]"
+          uv pip install --system -e ".[dev]"
           pytest tests/test_rust_id_validation.py -v
