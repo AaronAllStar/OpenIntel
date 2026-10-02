@@ -40,10 +40,21 @@ RUN uv pip install --system --no-cache -e .
 # Copy built frontend static assets from Stage 1 into the location expected by FastAPI
 COPY --from=frontend-builder /build/dist /app/src/ui/dist
 
+
+# Create unprivileged runtime user and data directory
+RUN groupadd -g 10001 openintel && \
+    useradd -u 10001 -g openintel -s /bin/bash -m openintel && \
+    mkdir -p /app/data /app/data/exports && \
+    chown -R openintel:openintel /app
+
+
 # Set runtime environment
 ENV PYTHONUNBUFFERED=1 \
     OPENINTEL_HOST=0.0.0.0 \
     OPENINTEL_PORT=8000
+
+# Run container as unprivileged user
+USER openintel:openintel
 
 # Expose unified application port
 EXPOSE 8000
@@ -54,3 +65,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
 
 # Launch OpenIntel unified server
 CMD ["uvicorn", "src.app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+

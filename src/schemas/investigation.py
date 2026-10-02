@@ -11,7 +11,12 @@ class CreateInvestigationRequest(BaseModel):
     target_kind: TargetKind
     target_value: str = Field(min_length=1, max_length=512)
     investigation_type: InvestigationType = InvestigationType.QUICK
+    legal_acknowledged: bool = Field(
+        default=True,
+        description="Mandatory acknowledgment of legal authority and adherence to ethical OSINT guidelines",
+    )
     settings: dict[str, Any] = Field(default_factory=dict)
+
 
 
 class InvestigationListItemResponse(BaseModel):

@@ -3,12 +3,14 @@ from collections.abc import AsyncIterator
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
+from src.app.api.middleware.auth import UserPrincipal, get_current_user
 from src.app.api.middleware.rate_limiter import RateLimiter
+from src.app.application.audit_service import AuditService
 from src.app.application.investigation_service import InvestigationService
 from src.app.domain.errors import InvestigationNotFoundError, ValidationError
 from src.app.infrastructure.database import get_db
@@ -27,6 +29,13 @@ create_rate_limiter = RateLimiter(times=10, seconds=60, key_prefix="create_inv")
 export_rate_limiter = RateLimiter(times=30, seconds=60, key_prefix="export_inv")
 
 
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -35,9 +44,17 @@ export_rate_limiter = RateLimiter(times=30, seconds=60, key_prefix="export_inv")
 )
 def create_investigation(
     payload: CreateInvestigationRequest,
+    request: Request,
     db: Session = Depends(get_db),
+    current_user: UserPrincipal = Depends(get_current_user),
 ) -> dict:
+    if not payload.legal_acknowledged:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ethical & Legal Guardrail: You must confirm authorized, legal use before initiating an OSINT investigation.",
+        )
 
+    client_ip = _get_client_ip(request)
     try:
         inv = InvestigationService.create_investigation(
             db=db,
@@ -47,6 +64,21 @@ def create_investigation(
             investigation_type=payload.investigation_type,
             settings=payload.settings,
         )
+        AuditService.record_audit_event(
+            db=db,
+            action="INVESTIGATION_CREATE",
+            resource_type="investigation",
+            resource_id=str(inv.id),
+            user_id=current_user.user_id,
+            role=current_user.role,
+            ip_address=client_ip,
+            details={
+                "name": inv.name,
+                "target_kind": inv.target_kind,
+                "target_value": inv.target_value,
+                "investigation_type": inv.investigation_type,
+            },
+        )
         return {
             "id": str(inv.id),
             "name": inv.name,
@@ -55,10 +87,22 @@ def create_investigation(
             "target_value": inv.target_value,
         }
     except ValidationError as exc:
+        AuditService.record_audit_event(
+            db=db,
+            action="INVESTIGATION_CREATE",
+            resource_type="investigation",
+            resource_id="",
+            user_id=current_user.user_id,
+            role=current_user.role,
+            ip_address=client_ip,
+            status="DENIED",
+            details={"error": str(exc), "target_value": payload.target_value},
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
+
 
 
 @router.get("", response_model=list[InvestigationListItemResponse])
@@ -66,6 +110,7 @@ def list_investigations(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
+    _user: UserPrincipal = Depends(get_current_user),
 ) -> list[dict]:
     return InvestigationService.list_investigations(db, skip=skip, limit=limit)
 
@@ -74,11 +119,13 @@ def list_investigations(
 def get_investigation(
     investigation_id: UUID,
     db: Session = Depends(get_db),
+    _user: UserPrincipal = Depends(get_current_user),
 ) -> dict:
     try:
         return InvestigationService.get_investigation_detail(db, investigation_id)
     except InvestigationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
 
 
 @router.get("/{investigation_id}/events")
@@ -122,10 +169,24 @@ async def stream_investigation_events(
 @router.post("/{investigation_id}/cancel")
 def cancel_investigation(
     investigation_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
+    current_user: UserPrincipal = Depends(get_current_user),
 ) -> dict:
     try:
         success = InvestigationService.cancel_investigation(db, investigation_id)
+        client_ip = _get_client_ip(request)
+        AuditService.record_audit_event(
+            db=db,
+            action="INVESTIGATION_CANCEL",
+            resource_type="investigation",
+            resource_id=str(investigation_id),
+            user_id=current_user.user_id,
+            role=current_user.role,
+            ip_address=client_ip,
+            status="SUCCESS" if success else "SKIPPED",
+            details={"cancelled": success},
+        )
         return {"cancelled": success}
     except InvestigationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -172,10 +233,23 @@ def get_investigation_provenance(
 )
 def export_investigation(
     investigation_id: UUID,
+    request: Request,
     format: Literal["markdown", "json"] = "markdown",
     db: Session = Depends(get_db),
+    current_user: UserPrincipal = Depends(get_current_user),
 ) -> PlainTextResponse | dict:
     try:
+        client_ip = _get_client_ip(request)
+        AuditService.record_audit_event(
+            db=db,
+            action="INVESTIGATION_EXPORT",
+            resource_type="investigation",
+            resource_id=str(investigation_id),
+            user_id=current_user.user_id,
+            role=current_user.role,
+            ip_address=client_ip,
+            details={"format": format},
+        )
         if format == "json":
             return InvestigationService.get_investigation_detail(db, investigation_id)
         report_md = InvestigationService.export_report_markdown(db, investigation_id)
@@ -186,4 +260,5 @@ def export_investigation(
         )
     except InvestigationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
 

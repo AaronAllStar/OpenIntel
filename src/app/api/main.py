@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.app.api.routes import health, investigations
+from src.app.api.routes import audit, health, investigations
 from src.app.infrastructure.config import get_settings
 from src.app.infrastructure.database import Base, engine
 from src.app.infrastructure.logging import logger, setup_logging
@@ -48,6 +48,8 @@ app.add_middleware(
 
 app.include_router(investigations.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
+
 
 # Mount built frontend if available
 ui_dist_path = Path("src/ui/dist")

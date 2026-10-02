@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     ADAPTER_TIMEOUT_MS: int = 30_000
     MAX_RESULTS_PER_ADAPTER: int = 500
     RATE_LIMIT_ENABLED: bool = True
+    AUTH_ENABLED: bool = False
+    ADMIN_API_KEY: str = "openintel-admin-secret-key-prod-32chars"
+    ANALYST_API_KEY: str = "openintel-analyst-secret-key-prod-32chars"
+
 
     # Persistence & Queues
     DATABASE_URL: str = (

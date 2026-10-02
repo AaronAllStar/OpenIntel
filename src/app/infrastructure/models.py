@@ -153,3 +153,28 @@ class RelationshipModel(Base):
         Index("ix_relationships_source", "source_entity_id"),
         Index("ix_relationships_target", "target_entity_id"),
     )
+
+
+class AuditLogModel(Base):
+    """Immutable audit trail of all security-sensitive actions and investigations."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    user_id: Mapped[str] = mapped_column(String(100), nullable=False, default="anonymous")
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="analyst")
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    ip_address: Mapped[str] = mapped_column(String(50), nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="SUCCESS")
+    details_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+
+    __table_args__ = (
+        Index("ix_audit_logs_timestamp", "timestamp"),
+        Index("ix_audit_logs_user", "user_id"),
+        Index("ix_audit_logs_action", "action"),
+        Index("ix_audit_logs_resource", "resource_type", "resource_id"),
+    )
+
