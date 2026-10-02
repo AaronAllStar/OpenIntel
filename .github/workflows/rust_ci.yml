@@ -58,7 +58,8 @@ jobs:
       - name: Install sqlx-cli and maturin
         run: |
           cargo install sqlx-cli --no-default-features --features postgres,native-tls
-          pip install maturin uv pytest pytest-asyncio
+          python -m pip install --upgrade pip
+          python -m pip install maturin pytest pytest-asyncio
 
       - name: Initialize PostgreSQL database schema
         run: |
@@ -81,10 +82,10 @@ jobs:
 
       - name: Build and install PyO3 extension
         run: |
-          maturin build --release -m crates/openintel-core/Cargo.toml --out dist
-          uv pip install --system dist/*.whl
+          maturin build --release -m crates/openintel-core/Cargo.toml --out dist -i python
+          python -m pip install dist/*.whl
 
       - name: Run Python integration tests and benchmarks
         run: |
-          uv pip install --system -e ".[dev]"
-          pytest tests/test_rust_id_validation.py -v
+          python -m pip install -e ".[dev]"
+          python -m pytest tests/test_rust_id_validation.py -v
