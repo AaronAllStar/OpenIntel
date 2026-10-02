@@ -1,0 +1,83 @@
+name: Rust Core CI & PostgreSQL Migrations
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-verify:
+    name: Rust & PyO3 Integration
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: openintel
+          POSTGRES_PASSWORD: openintel_secure_password
+          POSTGRES_DB: openintel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://openintel:openintel_secure_password@localhost:5432/openintel_test
+      RUST_BACKTRACE: 1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install sqlx-cli and maturin
+        run: |
+          cargo install sqlx-cli --no-default-features --features postgres,native-tls
+          pip install maturin uv pytest pytest-asyncio
+
+      - name: Initialize PostgreSQL database schema
+        run: |
+          PGPASSWORD=openintel_secure_password psql -h localhost -U openintel -d openintel_test -f openintel.sql
+
+      - name: Check Rust formatting
+        run: cargo fmt --check
+
+      - name: Run Clippy linter
+        run: cargo clippy -- -D warnings
+
+      - name: Run Rust unit tests
+        run: cargo test --workspace
+
+      - name: Build and install PyO3 extension
+        run: |
+          maturin develop -m crates/openintel-core/Cargo.toml
+
+      - name: Run Python integration tests and benchmarks
+        run: |
+          uv pip install -e ".[dev]"
+          pytest tests/test_rust_id_validation.py -v

@@ -1,10 +1,71 @@
-.venv
-__pycache__
-*.pyc
-*.pyo
+# ==============================================================================
+# OpenIntel Docker Build Ignore
+# Prevents sensitive files, local caches, and build bloat from entering images
+# ==============================================================================
+
+# Version Control & Metadata
 .git
+.github
+.gitignore
+.dockerignore
+
+# Virtual Environments & Build Caches
+.venv
+venv
+ENV
+env
+__pycache__
+*.py[cod]
+*$py.class
+target
+build
+dist
+wheels
+*.egg-info
+*.pyd
+*.so
+*.dll
+*.dylib
+
+# Secrets & Environment Variables (CRITICAL: Never bake into Docker layers)
+.env
+.env.*
+*.pem
+*.key
+*.cert
+secrets
+
+# Databases, Storage & Local Persistence
+*.db
+*.sqlite
+*.sqlite3
+openintel.db*
+openintel_pgdata
+postgres_data
+data
+data/exports
+data/raw
+
+# Test & Quality Assurance Suites
+tests
+.coverage
+htmlcov
 .pytest_cache
+.mypy_cache
 .ruff_cache
-openintel.db
+
+# Frontend source caches
 src/ui/node_modules
 src/ui/dist
+npm-debug.log*
+yarn-debug.log*
+
+# Documentation & IDE
+docs
+context
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

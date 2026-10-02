@@ -36,56 +36,81 @@ class IdValidationAdapter(BaseSubprocessAdapter):
         yield ProgressEvent(step="Initializing national registry checksum algorithms", pct=10.0)
 
         await asyncio.sleep(0.05)
-        yield ProgressEvent(step="Testing international checksum standards (Luhn, Modulus 11, Verhoeff)", pct=40.0)
+        yield ProgressEvent(
+            step="Testing international checksum standards (Luhn, Modulus 11, Verhoeff)", pct=40.0
+        )
 
         matches: list[dict[str, str]] = []
 
-        # 1. Test using python-stdnum across popular schemes
-        try:
-            import stdnum.br.cpf as br_cpf
-            import stdnum.es.dni as es_dni
-            import stdnum.es.nie as es_nie
-            import stdnum.fr.nif as fr_nif
-            import stdnum.it.codicefiscale as it_cf
-            import stdnum.mx.curp as mx_curp
-            import stdnum.us.ssn as us_ssn
+        from src.app.infrastructure.config import get_settings
 
-            schemes = [
-                ("Spain DNI", es_dni, "ESP"),
-                ("Spain NIE", es_nie, "ESP"),
-                ("Brazil CPF", br_cpf, "BRA"),
-                ("USA SSN", us_ssn, "USA"),
-                ("Mexico CURP", mx_curp, "MEX"),
-                ("France NIF", fr_nif, "FRA"),
-                ("Italy Codice Fiscale", it_cf, "ITA"),
-            ]
+        settings = get_settings()
+        use_rust = getattr(settings, "USE_RUST_ID_VALIDATOR", True)
 
-            for name, module, country in schemes:
-                try:
-                    if module.is_valid(raw_id):
-                        matches.append({
-                            "scheme": name,
-                            "country": country,
-                            "standard": getattr(module, "compact", lambda x: x)(raw_id),
-                        })
-                except Exception:
-                    pass
-        except Exception as exc:
-            yield LogEvent(level="warn", message=f"stdnum check note: {exc}")
+        if use_rust:
+            try:
+                import openintel_core
 
-        # 2. Test using idnumbers library
-        try:
-            from idnumbers.nationalid import BRA, ESP, USA
+                matches = openintel_core.validate_national_id(raw_id)
+            except Exception as exc:
+                yield LogEvent(
+                    level="debug", message=f"Rust ID validator fallback triggered: {exc}"
+                )
+                use_rust = False
 
-            if not matches:
-                if hasattr(ESP, "DNI") and ESP.DNI.validate(raw_id):
-                    matches.append({"scheme": "Spain DNI", "country": "ESP", "standard": raw_id})
-                elif hasattr(BRA, "CPF") and BRA.CPF.validate(raw_id):
-                    matches.append({"scheme": "Brazil CPF", "country": "BRA", "standard": raw_id})
-                elif hasattr(USA, "SSN") and USA.SSN.validate(raw_id):
-                    matches.append({"scheme": "USA SSN", "country": "USA", "standard": raw_id})
-        except Exception as exc:
-            yield LogEvent(level="warn", message=f"idnumbers check note: {exc}")
+        if not use_rust:
+            # 1. Fallback: test using python-stdnum across popular schemes
+            try:
+                import stdnum.br.cpf as br_cpf
+                import stdnum.es.dni as es_dni
+                import stdnum.es.nie as es_nie
+                import stdnum.fr.nif as fr_nif
+                import stdnum.it.codicefiscale as it_cf
+                import stdnum.mx.curp as mx_curp
+                import stdnum.us.ssn as us_ssn
+
+                schemes = [
+                    ("Spain DNI", es_dni, "ESP"),
+                    ("Spain NIE", es_nie, "ESP"),
+                    ("Brazil CPF", br_cpf, "BRA"),
+                    ("USA SSN", us_ssn, "USA"),
+                    ("Mexico CURP", mx_curp, "MEX"),
+                    ("France NIF", fr_nif, "FRA"),
+                    ("Italy Codice Fiscale", it_cf, "ITA"),
+                ]
+
+                for name, module, country in schemes:
+                    try:
+                        if module.is_valid(raw_id):
+                            matches.append(
+                                {
+                                    "scheme": name,
+                                    "country": country,
+                                    "standard": getattr(module, "compact", lambda x: x)(raw_id),
+                                }
+                            )
+                    except Exception:
+                        pass
+            except Exception as exc:
+                yield LogEvent(level="warn", message=f"stdnum check note: {exc}")
+
+            # 2. Test using idnumbers library
+            try:
+                from idnumbers.nationalid import BRA, ESP, USA
+
+                if not matches:
+                    if hasattr(ESP, "DNI") and ESP.DNI.validate(raw_id):
+                        matches.append(
+                            {"scheme": "Spain DNI", "country": "ESP", "standard": raw_id}
+                        )
+                    elif hasattr(BRA, "CPF") and BRA.CPF.validate(raw_id):
+                        matches.append(
+                            {"scheme": "Brazil CPF", "country": "BRA", "standard": raw_id}
+                        )
+                    elif hasattr(USA, "SSN") and USA.SSN.validate(raw_id):
+                        matches.append({"scheme": "USA SSN", "country": "USA", "standard": raw_id})
+            except Exception as exc:
+                yield LogEvent(level="warn", message=f"idnumbers check note: {exc}")
 
         yield ProgressEvent(step="Formatting public registry validation results", pct=80.0)
 

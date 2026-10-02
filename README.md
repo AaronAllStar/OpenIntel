@@ -1,254 +1,236 @@
 # OpenIntel 🛰️
-> **Unified, Interactive, and Self-Hosted OSINT Intelligence Platform**  
-> *Plataforma Unificada, Interactiva y Autohospedada de Inteligencia OSINT*
+> **Unified, High-Performance, and Self-Hosted OSINT Intelligence Platform**  
+> *Rust-Accelerated Entity Resolution, Real-Time Reconnaissance Cockpit, and PostgreSQL Persistence*
 
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](Dockerfile)
+[![Rust Core](https://img.shields.io/badge/Rust-2021%20Edition-DEA584?logo=rust&logoColor=black)](crates/openintel-core)
+[![PyO3](https://img.shields.io/badge/PyO3-0.22-FFD43B?logo=python&logoColor=black)](https://pyo3.rs)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql&logoColor=white)](examples/openintel_schema_example.sql)
 [![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](src/ui)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?logo=tailwindcss&logoColor=white)](src/ui/tailwind.config.js)
+[![Docker](https://img.shields.io/badge/Docker-Hardened-2496ED?logo=docker&logoColor=white)](Dockerfile)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-## 🌐 Language Navigation / Navegación por Idioma
-* 🇬🇧 [English Documentation](#-english-documentation)
-* 🇪🇸 [Documentación en Español](#-documentación-en-español)
+## 📑 Table of Contents
+1. [Overview & Architecture](#-overview--architecture)
+2. [Project Technology Stack](#-project-technology-stack)
+3. [End-to-End User Tutorial](#-end-to-end-user-tutorial)
+4. [Mathematical Modeling of Intelligence Operations](#-mathematical-modeling-of-intelligence-operations)
+   - [Bayesian Confidence Corroboration](#1-bayesian-confidence-propagation)
+   - [Algorithmic Verification Formulations](#2-national-registry-checksum-algorithms)
+   - [Graph Deduplication & Entity Resolution](#3-graph-deduplication--canonical-linkage)
+5. [Quickstart & Deployment Guide](#-quickstart--deployment-guide)
+   - [Option A: Production Docker Compose (Recommended)](#option-a-production-docker-compose-postgresql--redis)
+   - [Option B: Local Development with Rust Engine](#option-b-local-development-with-rust-engine)
+6. [Database Schema Reference](#-database-schema-reference)
+7. [Security & DevSecOps Posture](#-security--devsecops-posture)
+8. [SEO & Search Visibility Metadata](#-seo--search-visibility-metadata)
 
 ---
 
-# 🇬🇧 English Documentation
+## 🔭 Overview & Architecture
 
-## Overview
-**OpenIntel** is a modern, self-hosted OSINT (Open Source Intelligence) investigation cockpit designed for security analysts, journalists, and authorized investigators. It orchestrates **27 specialized reconnaissance engines** behind a sleek, cyberpunk-inspired real-time web dashboard.
+**OpenIntel** is an enterprise-grade, self-hosted OSINT (Open Source Intelligence) cockpit engineered for security analysts, incident responders, fraud examiners, and authorized investigators. It unifies **27 specialized reconnaissance engines** behind an ultra-low latency, real-time cyber investigation dashboard.
 
-Unlike legacy command-line tools that operate in silos, OpenIntel normalizes, deduplicates, and correlates findings into an interactive graph with strict evidence provenance tracking, public registry validation, and legal classifications.
+Unlike legacy CLI utilities that execute in disconnected silos and accumulate stale local state, OpenIntel normalizes, deduplicates, and correlates disparate findings into a **directed property graph** with complete cryptographic and evidentiary provenance, public legal classifications, and mathematical confidence modeling.
 
----
-
-## Key Features
-
-* **Interactive Cyber OSINT Cockpit**:
-  * Real-time spinning radar widget and operational telemetry.
-  * Live Server-Sent Events (SSE) streaming logs and progress indicators.
-  * Interactive relationship graph and evidence provenance inspection modal.
-* **5 Tailored Multi-Modal Search Spaces**:
-  * 👤 **Person (Name & Surname)**: Dedicated fields for First Name, Last Name, and optional Company/Domain to infer corporate email schemas.
-  * 📱 **Phone with Country Selector**: Interactive dropdown with international flags and dial codes (+34, +52, +1, +57, +54, etc.) formatted automatically to ITU E.164.
-  * 🌍 **Location (Country & City)**: Geographic reconnaissance mapped to cities and regions.
-  * 🪪 **National ID & Tax Identifiers**: Country-specific checksum validation for 70+ countries (SSN, DNI, NIE, CPF, CURP, RFC, etc.) using `python-stdnum` and `idnumbers`.
-  * 🌐 **Digital & Network Assets**: Usernames, corporate emails, domains, URLs, IPs, and Git repositories.
-* **Granular Facet & Engine Selection ("Choose What You Need")**:
-  * One-click presets: *Social Only*, *Phone & WhatsApp*, *Corporate Recon*, *Infrastructure & Leaks*, *ID Validation*, or *All Engines*.
-  * Modular checkboxes categorized by domain.
-* **Specialized Platform Adapters**:
-  * 🐦 **X (Twitter)**: Sherlock + `Twikit` (public guest lookup without API keys) + Socialscan.
-  * 📸 **Instagram**: Sherlock + `Instaloader` (public profile and metadata extraction) + Socialscan.
-  * 💬 **WhatsApp**: `WhatsAppAdapter` (Click-to-Chat `wa.me` verification, presence signal, vCard links) + PhoneInfoga + `phonenumbers`.
-  * 💼 **Business Emails**: `EmailEnrich` (pattern generator `first.last@company.com` + async DNS MX validation) + theHarvester + `EmailFinder`.
-* **Single-Container Multi-Stage Docker Packaging**:
-  * Single container serving both the React/Tailwind frontend and the FastAPI backend on port `8000`.
-
----
-
-## Integrated OSINT Engines (27 Adapters)
-
-| Category | Engines | Capabilities |
-|---|---|---|
-| **Social & Profiles** | **Sherlock**, **Maigret**, **Blackbird**, **Twikit**, **Instaloader**, **Socialscan** | Multi-platform username scans, profile correlation, bio metadata, and non-intrusive registration signal probes. |
-| **Phone & Messaging** | **WhatsApp**, **PhoneInfoga**, **Bellingcat Telegram**, **SearchPhone**, **Ignorant** | ITU E.164 normalization, carrier lookup, WhatsApp presence, and Telegram signals. |
-| **Corporate & Emails** | **Email Enrich**, **Email Finder**, **theHarvester**, **Holehe**, **GHunt**, **H8mail**, **CrossLinked** | Business email pattern permutations, async DNS MX verification, role mailboxes, Google footprint, breach disclosures, and LinkedIn mapping. |
-| **Network & Code** | **Amass**, **DNSTwist**, **Recon-ng**, **SpiderFoot**, **Photon**, **OctoSuite**, **TruffleHog**, **Metagoofil** | External DNS mapping, typo-squatting permutations, deep web crawling, GitHub repository audit, leaked secrets/keys, and document metadata. |
-| **National Registries** | **ID Validation** | Official checksum verification across 70+ countries (DNI, NIE, SSN, CPF, RFC, NIF, CURP). |
-
----
-
-## Quick Start with Docker
-
-### Option A: Run the Unified Single Container (Recommended)
-
-Run OpenIntel directly with SQLite (no external database needed):
-
-```bash
-# 1. Build the unified image (frontend + backend)
-docker build -t openintel:latest .
-
-# 2. Launch the container
-docker run -d --name openintel-app -p 8000:8000 openintel:latest
+```mermaid
+graph TD
+    UI[React 18 + TailwindCSS Cockpit] -->|SSE / REST API| API[FastAPI Orchestrator]
+    API -->|PyO3 Native Bridge| RUST[Rust Core Engine - openintel_core]
+    RUST -->|Rayon Parallelism| VAL[National ID & Algorithm Checksum Engine]
+    RUST -->|sqlx Connection Pool| PG[(PostgreSQL 16 Storage)]
+    API -->|Celery Task Queue| REDIS[(Redis 7 Message Broker)]
+    REDIS --> WORKER[Async Subprocess Workers]
+    WORKER -->|Adapters 1..27| OSINT[External Recon: Sherlock, Maigret, Twikit, WhatsApp, theHarvester]
+    WORKER -->|Graph Findings| API
 ```
 
-Open your browser at 👉 **http://localhost:8000/**
+---
 
-### Option B: Run with Docker Compose (PostgreSQL & Redis)
+## 🛠️ Project Technology Stack
 
-For persistent multi-user environments with PostgreSQL and Redis:
+| Layer | Component | Version / Specification | Architectural Purpose |
+|---|---|---|---|
+| **High-Performance Core** | **Rust** | `edition = 2021` | In-memory CPU-bound algorithms, parallel checksum calculations, and zero-allocation string parsing. |
+| **Python–Rust Interop** | **PyO3 + Maturin** | `pyo3 = 0.22`, `maturin = 1.15` | Native CPython bindings preserving existing Python signatures with sub-microsecond invocation overhead. |
+| **Async Concurrency** | **Tokio & Rayon** | `tokio = 1.43`, `rayon = 1.12` | Work-stealing multi-threading for batch validation across multicore CPUs. |
+| **Persistence Layer** | **PostgreSQL** | `16-alpine`, `sqlx = 0.8` | High-throughput relational graph persistence with native `UUID`, `TIMESTAMPTZ`, and `JSONB` indexing (Zero SQLite). |
+| **Backend API Gateway** | **FastAPI** | Python 3.12+ / 3.13 | High-concurrency async orchestrator, dependency injection, and SSE streaming pipeline. |
+| **Task Queue & Broker** | **Celery & Redis** | `celery = 5.4`, `redis = 7-alpine` | Distributed asynchronous background execution with authenticated message queues and concurrency caps. |
+| **Frontend Cockpit** | **React 18 & Vite** | React 18.3, TailwindCSS 3.4 | Cyberpunk-inspired real-time telemetry, rotating radar widget, and interactive Cytoscape graph canvas. |
+| **Containerization** | **Docker & Compose** | Multi-stage Dockerfile | Unprivileged execution (`openintel:openintel`), dropped capabilities, and strict localhost/internal network isolation. |
 
+---
+
+## 🚀 End-to-End User Tutorial
+
+### Step 1: Launch the Platform
+Deploy the hardened cluster via Docker Compose:
 ```bash
 docker compose up -d --build
 ```
+Navigate to **`http://localhost:8000`** in your browser.
+
+### Step 2: Choose Your Target Space
+The OpenIntel **Search Cockpit** provides 5 specialized operational search spaces:
+1. **Person (Name & Surname)**: Input First Name, Last Name, and optional Company Domain. Generates corporate permutations (`first.last@company.com`) and queries business footprints.
+2. **Phone & Messaging**: Enter the phone number and select the international dial code. Automatically normalizes to ITU E.164 and probes WhatsApp, Telegram, and carrier registries.
+3. **National ID & Tax Identifiers**: Input an identifier (e.g., `12345678Z` or `111.444.777-35`). The Rust engine immediately tests international checksum standards (Mod 11, Luhn, Verhoeff, Mod 23) in $<2\mu\text{s}$.
+4. **Digital & Network Assets**: Investigate domains, IP addresses, URLs, usernames, or Git repositories.
+5. **Location & Geolocation**: Target geographic regions and municipal infrastructures.
+
+### Step 3: Granular Engine & Facet Selection
+Use one-click preset filters or toggle individual engines:
+- `Social Only`: Activates Sherlock, Maigret, Blackbird, Twikit, and Socialscan.
+- `Phone & WhatsApp`: Activates WhatsApp click-to-chat verification, PhoneInfoga, and Ignorant.
+- `Corporate Recon`: Activates EmailEnrich, theHarvester, Holehe, GHunt, and CrossLinked.
+- `Infrastructure & Leaks`: Activates TruffleHog, DNSTwist, Amass, and SpiderFoot.
+- `ID Validation`: Activates the Rust-accelerated international checksum algorithms.
+
+### Step 4: Real-Time Cockpit & Graph Exploration
+- Watch live operational logs stream via **Server-Sent Events (SSE)**.
+- Explore the **Interactive Relationship Graph**: drag nodes, inspect edge corroboration, and view confidence scores.
+- Click any node or edge to open the **Evidence Provenance Modal**, revealing the exact raw tool observation, timestamp, and legal classification.
 
 ---
 
-## Local Development (Without Docker)
+## 📐 Mathematical Modeling of Intelligence Operations
 
-### Prerequisites
-* Python 3.12+ (or `uv`)
-* Node.js 20+ & npm
+### 1. Bayesian Confidence Propagation
+OpenIntel calculates hypothesis certainty when multiple independent OSINT engines observe corroborating evidence. Given an entity linkage hypothesis $H$ and independent observations $E_1, E_2, \dots, E_n$:
 
-```bash
-# 1. Clone repository
-git clone https://github.com/your-org/openintel.git
-cd openintel
+$$\text{Odds}(H \mid E_1, \dots, E_n) = \text{Odds}(H) \prod_{i=1}^n \frac{P(E_i \mid H)}{P(E_i \mid \neg H)}$$
 
-# 2. Install Python dependencies
-uv venv
-uv pip install -e ".[dev]"
+Transforming into log-odds space for additive computational stability:
 
-# 3. Install and build Frontend
-cd src/ui
-npm install
-npm run build
-cd ../..
+$$\mathcal{L}(H \mid E_{1:n}) = \mathcal{L}(H) + \sum_{i=1}^n \log \left(\frac{P(E_i \mid H)}{P(E_i \mid \neg H)}\right)$$
 
-# 4. Start Local Backend
-uv run uvicorn src.app.api.main:app --host 127.0.0.1 --port 8000
-```
+Posterior confidence probability is mapped to categorical confidence:
 
-### Running Tests & Quality Checks
-```bash
-# Run complete test suite (27 unit, contract & integration tests)
-uv run --no-sync pytest tests/ -v
+$$P(H \mid E_{1:n}) = \frac{1}{1 + e^{-\mathcal{L}(H \mid E_{1:n})}}$$
 
-# Run code style & linter
-uv run --no-sync ruff check src tests
-```
+$$\text{Confidence Level} = \begin{cases} 
+\text{CONFIRMED} & \text{if } P \ge 0.95 \\
+\text{STRONG} & \text{if } 0.75 \le P < 0.95 \\
+\text{SUPPORTED} & \text{if } 0.50 \le P < 0.75 \\
+\text{OBSERVED} & \text{if } P < 0.50 
+\end{cases}$$
 
----
+### 2. National Registry Checksum Algorithms
+To prevent false-positive entity creation, the Rust engine executes exact mathematical checks in memory:
 
-## Legal & Public-Information Model
+#### A. Weighted Modulo 11 Inner Product (e.g., Brazil CPF, Tax Numbers)
+Given digits $D = [d_1, d_2, \dots, d_k]$ and fixed weight vector $W = [w_1, w_2, \dots, w_k]$:
 
-Every collected observation is explicitly classified according to its legal origin:
-* `PUBLIC_OBSERVATION`: Unauthenticated crawling, search indexing, and public commit histories.
-* `PUBLIC_REGISTRY`: Authoritative registries (DNS records, ITU-T E.164 telecom plans, official national ID checksum rules).
-* `PLATFORM_SIGNAL`: Non-intrusive public account registration presence signals without credential stuffing.
-* `INFERENCE`: Correlated link relationships derived by the correlation engine.
+$$S = \sum_{i=1}^k d_i \cdot w_i$$
 
----
+$$R = S \pmod{11}, \quad C = \begin{cases} 0 & \text{if } R < 2 \\ 11 - R & \text{if } R \ge 2 \end{cases}$$
 
-<br />
+#### B. Luhn Modulo 10 Matrix Transformation
+For digits numbered from right to left (1-indexed):
 
-# 🇪🇸 Documentación en Español
+$$f(d_i, i) = \begin{cases} d_i & \text{if } i \text{ is odd} \\ 2d_i - 9 & \text{if } i \text{ is even and } 2d_i > 9 \\ 2d_i & \text{if } i \text{ is even and } 2d_i \le 9 \end{cases}$$
 
-## Descripción General
-**OpenIntel** es una plataforma moderna y autohospedada de investigación OSINT (Inteligencia de Fuentes Abiertas) diseñada para analistas de seguridad, periodistas de investigación y peritos forenses. Orquesta **27 motores de reconocimiento especializados** bajo un panel de control interactivo en tiempo real con estética cibernética de alta fidelidad.
+$$\sum_{i=1}^k f(d_i, i) \equiv 0 \pmod{10}$$
 
-A diferencia de las herramientas tradicionales de terminal, OpenIntel normaliza, desduplica y correlaciona todos los hallazgos en un grafo interactivo con trazabilidad estricta de procedencia, validación de registros públicos y clasificación legal de evidencias.
+#### C. Verhoeff Checksum over Dihedral Group $D_5$
+Calculated using non-commutative permutations $P$ and Cayley multiplication table $F$:
+
+$$c = 0$$
+
+$$c_{new} = F[c][P[i \pmod 8][d_i]]$$
+
+### 3. Graph Deduplication & Canonical Linkage
+Entity deduplication implements an amortized $O(\alpha(V))$ disjoint-set resolution (Union-Find) with path compression:
+
+$$\text{CanonicalKey}(E) = \text{Hash}\left(\text{Kind}(E) \parallel \text{Normalize}(\text{Value}(E))\right)$$
+
+If $\text{CanonicalKey}(E_A) == \text{CanonicalKey}(E_B)$, a virtual contraction edge merges node properties and merges incident edge lists.
 
 ---
 
-## Características Principales
+## 💻 Quickstart & Deployment Guide
 
-* **Cockpit Interactivo Cyber-OSINT**:
-  * Widget de **Radar Activo** con haz giratorio y telemetría operativa en vivo.
-  * Transmisión de registros en tiempo real mediante *Server-Sent Events* (SSE) y barras de progreso dinámicas.
-  * Grafo interactivo de entidades y relaciones, con modal de inspección de evidencia original.
-* **5 Espacios de Búsqueda Especializados (`SearchCockpit`)**:
-  * 👤 **Persona (Nombre y Apellido)**: Campos dedicados para Nombre, Apellido(s) y Empresa / Dominio (opcional) para derivar esquemas de correo corporativo.
-  * 📱 **Teléfono con Selector de País**: Menú desplegable interactivo con banderas y prefijos internacionales (🇪🇸 +34, 🇲🇽 +52, 🇺🇸 +1, 🇨🇴 +57, 🇦🇷 +54, etc.) normalizado a E.164.
-  * 🌍 **Localización (País y Ciudad)**: Reconocimiento geoespacial estructurado por país y ciudad/región.
-  * 🪪 **Documento de Identidad por País**: Validación de algoritmo de dígito de control para 70+ países (DNI/NIE en España, CURP/RFC en México, SSN en EE. UU., CPF en Brasil, etc.) mediante `python-stdnum` e `idnumbers`.
-  * 🌐 **Activos Digitales y de Red**: Usuarios de redes, correos corporativos, dominios, URLs, direcciones IP y repositorios Git.
-* **Selección Modular de Facetas y Motores ("Poder seleccionar lo que necesito")**:
-  * Presets rápidos: *Solo Redes Sociales*, *Teléfono y WhatsApp*, *Reconocimiento Corporativo*, *Infraestructura y Fugas*, *Validación de Documentos*, o *Todos los Motores*.
-  * Checkboxes categorizados para encender o apagar motores a demanda.
-* **Adaptadores de Plataforma Especializados**:
-  * 🐦 **X (Twitter)**: Sherlock + `Twikit` (sondeo público de invitado sin claves API) + Socialscan.
-  * 📸 **Instagram**: Sherlock + `Instaloader` (extracción de perfil público, biografía y metadatos) + Socialscan.
-  * 💬 **WhatsApp**: `WhatsAppAdapter` (verificación de presencia `wa.me`, enlace de chat directo y vCard) + PhoneInfoga + `phonenumbers`.
-  * 💼 **Correos Corporativos**: `EmailEnrich` (generación de permutaciones `nombre.apellido@empresa.com` + resolución DNS MX asíncrona) + theHarvester + `EmailFinder`.
-* **Empaquetado en un Solo Contenedor Docker Multi-Etapa**:
-  * Un único contenedor que sirve tanto la interfaz React/Tailwind como el backend FastAPI en el puerto `8000`.
+### Option A: Production Docker Compose (PostgreSQL + Redis)
 
----
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+2. Generate a secure secret key:
+   ```bash
+   openssl rand -hex 32
+   ```
+   Add this key to your `.env` file under `SECRET_KEY`.
+3. Launch the hardened multi-container architecture:
+   ```bash
+   docker compose up -d --build
+   ```
+4. Access the cockpit: **`http://localhost:8000`**
 
-## Catálogo de Motores Integrados (27 Adaptadores)
+### Option B: Local Development with Rust Engine
 
-| Categoría | Motores | Capacidades |
-|---|---|---|
-| **Redes y Perfiles** | **Sherlock**, **Maigret**, **Blackbird**, **Twikit**, **Instaloader**, **Socialscan** | Rastreo de alias en 500+ sitios, correlación de perfiles, extracción de biografías y sondeos de señal de cuenta. |
-| **Teléfono y Mensajería** | **WhatsApp**, **PhoneInfoga**, **Bellingcat Telegram**, **SearchPhone**, **Ignorant** | Normalización ITU E.164, operador de telecomunicaciones, enlaces de chat directo wa.me y presencia en Telegram. |
-| **Empresa y Correos** | **Email Enrich**, **Email Finder**, **theHarvester**, **Holehe**, **GHunt**, **H8mail**, **CrossLinked** | Permutaciones de correo corporativo, validación DNS MX, buzones públicos (contact@, security@), huella en Google, brechas y mapeo en LinkedIn. |
-| **Infraestructura y Código** | **Amass**, **DNSTwist**, **Recon-ng**, **SpiderFoot**, **Photon**, **OctoSuite**, **TruffleHog**, **Metagoofil** | Cartografía DNS externa, detección de typosquatting/phishing, rastreo web rápido, auditoría de commits y secretos en repositorios y metadatos de documentos. |
-| **Registros Oficiales** | **ID Validation** | Algoritmos de comprobación de dígitos de control para documentos de identidad y fiscales en 70+ países. |
+1. **Install Prerequisites**:
+   - Python 3.12+ (or [uv](https://docs.astral.sh/uv/))
+   - Node.js 20+ & npm
+   - Rust 1.80+ (`rustup default stable`)
+2. **Set up Virtual Environment**:
+   ```bash
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   uv pip install -e ".[dev]"
+   ```
+3. **Compile the Rust Native Extension (`openintel_core`)**:
+   ```bash
+   maturin develop -m crates/openintel-core/Cargo.toml --release
+   ```
+4. **Compile the React UI**:
+   ```bash
+   cd src/ui && npm install && npm run build && cd ../..
+   ```
+5. **Run the Server**:
+   ```bash
+   uv run uvicorn src.app.api.main:app --host 127.0.0.1 --port 8000
+   ```
+6. **Execute Verification Test Suites**:
+   ```bash
+   # Rust unit tests
+   cargo test --workspace
 
----
-
-## Inicio Rápido con Docker
-
-### Opción A: Contenedor Único Autocontenido (Recomendado)
-
-Inicia OpenIntel directamente con base de datos SQLite integrada (sin necesidad de configurar servicios externos):
-
-```bash
-# 1. Construir la imagen unificada (frontend + backend)
-docker build -t openintel:latest .
-
-# 2. Iniciar el contenedor
-docker run -d --name openintel-app -p 8000:8000 openintel:latest
-```
-
-Abre tu navegador en 👉 **http://localhost:8000/**
-
-### Opción B: Arranque con Docker Compose (PostgreSQL y Redis)
-
-Para entornos persistentes con PostgreSQL y Redis:
-
-```bash
-docker compose up -d --build
-```
+   # Python integration & benchmark tests (Asserts >= 5x Rust speedup)
+   pytest tests/test_rust_id_validation.py -v
+   ```
 
 ---
 
-## Desarrollo Local (Sin Docker)
+## 🗄️ Database Schema Reference
 
-### Requisitos Previos
-* Python 3.12+ (o `uv`)
-* Node.js 20+ y npm
+The production persistence layer is built on PostgreSQL. An example schema and synthetic demonstration database is provided for GitHub viewers at:
 
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/your-org/openintel.git
-cd openintel
+👉 **[examples/openintel_schema_example.sql](examples/openintel_schema_example.sql)**
 
-# 2. Instalar dependencias de Python
-uv venv
-uv pip install -e ".[dev]"
-
-# 3. Compilar el Frontend interactivo
-cd src/ui
-npm install
-npm run build
-cd ../..
-
-# 4. Iniciar el servidor local
-uv run uvicorn src.app.api.main:app --host 127.0.0.1 --port 8000
-```
-
-### Ejecución de Pruebas y Control de Calidad
-```bash
-# Ejecutar suite de pruebas completa (27 tests)
-uv run --no-sync pytest tests/ -v
-
-# Ejecutar formateador y linter ruff
-uv run --no-sync ruff check src tests
-```
+The relational schema implements:
+- `investigations`: Primary investigation records with UUIDv4 identifiers and JSONB runtime settings.
+- `entities`: Deduplicated intelligence nodes with canonical compound keys (`investigation_id`, `canonical_key`).
+- `relationships`: Directed multi-graph edges linking source and target entities with confidence scoring and reasoning.
+- `evidence`: Cryptographic observations linking nodes or edges to specific adapter tools, raw observations, and legal classifications (`PUBLIC_OBSERVATION`, `PUBLIC_REGISTRY`, `PLATFORM_SIGNAL`, `INFERENCE`).
+- `audit_logs`: Tamper-evident operational trail tracking actions, analyst IDs, and source IP addresses.
 
 ---
 
-## Marco Legal y de Acceso a Información Pública
+## 🛡️ Security & DevSecOps Posture
 
-Cada evidencia recolectada por OpenIntel cuenta con una clasificación formal de origen y legalidad:
-* `PUBLIC_OBSERVATION`: Indexación pública, rastreo no autenticado y registros visibles en la web.
-* `PUBLIC_REGISTRY`: Registros autorizados (DNS, planes de numeración ITU-T E.164, algoritmos públicos de documentos de identidad).
-* `PLATFORM_SIGNAL`: Sondas no intrusivas de existencia de cuenta sin uso de contraseñas ni ataques de fuerza bruta.
-* `INFERENCE`: Correlaciones deducidas a través del motor de enlace de entidades.
+- **Zero External Data Exposure**: PostgreSQL (port 5432) and Redis (port 6379) are isolated to the Docker internal bridge network (`openintel-net`). Neither port is published to the host.
+- **SSRF Prevention**: Outbound HTTP requests to loopback (`127.0.0.1`, `::1`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud metadata services (`169.254.169.254`, `metadata.google.internal`) are blocked by default.
+- **Unprivileged Containers**: Containers execute under unprivileged user `openintel` (`UID 10001`), with `no-new-privileges:true` and `cap_drop: [ALL]`.
+- **Sensitive Key Redaction**: `structlog` filters automatically mask PII, national IDs, tokens, and passwords prior to disk or console emission.
+
+---
+
+## 🔍 SEO & Search Visibility Metadata
+
+- **Keywords**: Open Source Intelligence, Self-Hosted OSINT, Threat Intelligence Cockpit, PyO3 Rust Interop, High-Performance Reconnaissance, PostgreSQL Graph Database, Entity Resolution, Fraud Investigation Tool, Bayesian Intelligence Corroboration.
+- **Classification**: Cybersecurity / Digital Forensics / Threat Intelligence / Rust Systems Engineering.
+- **Repository**: [https://github.com/AaronAllStar/OpenIntel](https://github.com/AaronAllStar/OpenIntel)

@@ -12,13 +12,22 @@ from src.app.infrastructure.warmup import warmup_subsystems
 
 @pytest.fixture(autouse=True)
 def setup_test_db(monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from src.app.infrastructure import database
     from src.app.infrastructure.config import get_settings
 
+    test_engine = create_engine("sqlite:///:memory:", echo=False)
+    monkeypatch.setattr(database, "engine", test_engine)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=test_engine))
     monkeypatch.setattr(get_settings(), "ENV", "test")
     monkeypatch.setattr(get_settings(), "RATE_LIMIT_ENABLED", False)
-    Base.metadata.create_all(bind=engine)
+
+    database.Base.metadata.create_all(bind=test_engine)
     yield
-    Base.metadata.drop_all(bind=engine)
+    database.Base.metadata.drop_all(bind=test_engine)
+    test_engine.dispose()
 
 
 def test_warmup_subsystems_performance():

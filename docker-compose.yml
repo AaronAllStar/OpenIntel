@@ -1,3 +1,9 @@
+# ==============================================================================
+# OpenIntel - Production-Hardened Multi-Container Orchestration
+# Zero External Exposure of Data Layer (PostgreSQL & Redis internal network only)
+# Enforces Least Privilege, Dropped Capabilities, and Resource Quotas
+# ==============================================================================
+
 services:
   app:
     build:
@@ -6,14 +12,24 @@ services:
     container_name: openintel-app
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      - DATABASE_URL=postgresql+psycopg://openintel:openintel_pass@postgres:5432/openintel
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-openintel}:${POSTGRES_PASSWORD:-openintel_secure_pass}@postgres:5432/${POSTGRES_DB:-openintel}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-openintel_redis_pass}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-openintel_redis_pass}@redis:6379/0
       - ENVIRONMENT=production
+      - SECRET_KEY=${SECRET_KEY:-openintel-change-me-in-production-min32chars}
     security_opt:
       - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    networks:
+      - openintel-net
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,33 +44,53 @@ services:
     restart: unless-stopped
     command: ["celery", "-A", "src.app.infrastructure.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
-      - DATABASE_URL=postgresql+psycopg://openintel:openintel_pass@postgres:5432/openintel
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-openintel}:${POSTGRES_PASSWORD:-openintel_secure_pass}@postgres:5432/${POSTGRES_DB:-openintel}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-openintel_redis_pass}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD:-openintel_redis_pass}@redis:6379/0
       - ENVIRONMENT=production
+      - SECRET_KEY=${SECRET_KEY:-openintel-change-me-in-production-min32chars}
     security_opt:
       - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+    networks:
+      - openintel-net
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
 
-
   postgres:
     image: postgres:16-alpine
     container_name: openintel-postgres
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:5432:5432"
+    # Security: Database port is internal to docker network only. Never exposed to host.
+    expose:
+      - "5432"
     environment:
-      POSTGRES_USER: openintel
-      POSTGRES_PASSWORD: openintel_pass
-      POSTGRES_DB: openintel
+      POSTGRES_USER: ${POSTGRES_USER:-openintel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openintel_secure_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-openintel}
     volumes:
       - openintel_pgdata:/var/lib/postgresql/data
+      - ./openintel.sql:/docker-entrypoint-initdb.d/01-openintel.sql:ro
+    security_opt:
+      - "no-new-privileges:true"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1024M
+    networks:
+      - openintel-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openintel -d openintel"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openintel} -d ${POSTGRES_DB:-openintel}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -63,13 +99,28 @@ services:
     image: redis:7-alpine
     container_name: openintel-redis
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-openintel_redis_pass}"]
+    # Security: Broker port is internal to docker network only. Never exposed to host.
+    expose:
+      - "6379"
+    security_opt:
+      - "no-new-privileges:true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - openintel-net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-openintel_redis_pass} ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
   openintel_pgdata:
+
+networks:
+  openintel-net:
+    driver: bridge

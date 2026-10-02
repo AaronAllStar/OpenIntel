@@ -1,8 +1,20 @@
-# Python
+# ==============================================================================
+# OpenIntel Root .gitignore
+# Security & Hygiene: Strict avoidance of secrets, binaries, DB dumps, and build caches
+# ==============================================================================
+
+# Rust & Cargo Build Artifacts
+target/
+**/*.rs.bk
+*.pyd
+*.so
+*.dll
+*.dylib
+
+# Python & Maturin Artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 build/
 develop-eggs/
@@ -20,26 +32,33 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# Virtual Environments
 .venv/
 venv/
 ENV/
+env/
 
-# Testing & Linting
+# Testing, Linting & Coverage
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Environment secrets & credentials
+# Environment, Secrets & Credentials (SECURITY CRITICAL)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.pem
 *.key
+*.cert
+*.crt
+id_rsa*
+id_ed25519*
+secrets/
 
-# Databases & Local Storage
+# Databases, Storage & PostgreSQL Volumes
 *.db
 *.db-journal
 *.db-wal
@@ -48,30 +67,32 @@ htmlcov/
 *.sqlite3
 openintel.db
 openintel.db*
+openintel.sql
 openintel_pgdata/
 postgres_data/
 data/db/
+*.dump
+*.sql.gz
+!docker/init-db/*.sql
 
-# Allow sample database for repository onboarding
-!openintel_sample.db
-
-# Node & Frontend
+# Frontend & Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-dist/
-src/ui/dist/
 src/ui/node_modules/
+src/ui/dist/
 
-# OSINT Data, Raw Blobs & Exports
+# OSINT Exports & Local Artifacts
 data/exports/*
 !data/exports/.gitkeep
 data/raw/*
 !data/raw/.gitkeep
+logs/
+*.log
 
-# IDEs & Operating System
+# IDE & OS Noise
 .idea/
 .vscode/
 *.swp

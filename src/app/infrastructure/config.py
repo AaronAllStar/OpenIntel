@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
     SECRET_KEY: str = "openintel-dev-secret-key-at-least-32-chars-long"
 
-    # Server binding (Localhost only)
+    # Server binding (Strict localhost only)
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
@@ -24,12 +24,14 @@ class Settings(BaseSettings):
     ADMIN_API_KEY: str = "openintel-admin-secret-key-prod-32chars"
     ANALYST_API_KEY: str = "openintel-analyst-secret-key-prod-32chars"
 
-
-    # Persistence & Queues
+    # Persistence & Queues (PostgreSQL only)
     DATABASE_URL: str = (
-        "sqlite:///./openintel.db"  # Defaults to local SQLite, overridable to Postgres
+        "postgresql+psycopg://openintel:openintel_pass@127.0.0.1:5432/openintel"
     )
     REDIS_URL: str = "redis://127.0.0.1:6379/0"
+
+    # Rust Core Engine Feature Flags
+    USE_RUST_ID_VALIDATOR: bool = True
 
     # File storage
     EXPORTS_DIR: Path = Path("./data/exports")
@@ -39,6 +41,15 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if self.ENV in ("production", "prod"):
+            if self.DEBUG:
+                raise ValueError("Security violation: DEBUG must be False in production environment")
+            if "openintel-dev" in self.SECRET_KEY or len(self.SECRET_KEY) < 32:
+                raise ValueError("Security violation: Default or insecure SECRET_KEY cannot be used in production")
+        return self
 
 
 @lru_cache

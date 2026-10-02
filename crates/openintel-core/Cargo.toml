@@ -1,0 +1,30 @@
+[package]
+name = "openintel-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["OpenIntel Team"]
+description = "High-performance Rust core for OpenIntel OSINT platform"
+
+[lib]
+name = "openintel_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.22.6", features = ["extension-module"] }
+tokio = { version = "1.43.0", features = ["full"] }
+sqlx = { version = "0.8.3", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate", "macros"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+uuid = { version = "1.13.1", features = ["v4", "serde"] }
+chrono = { version = "0.4.39", features = ["serde"] }
+rayon = "1.10.0"
+thiserror = "2.0.11"
+anyhow = "1.0.95"
+regex = "1.11.1"
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
+[[bench]]
+name = "id_validation"
+harness = false
