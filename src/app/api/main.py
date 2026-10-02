@@ -18,9 +18,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import src.app.infrastructure.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    logger.info("Running subsystem pre-warmup...")
+    from src.app.infrastructure.warmup import warmup_subsystems
+
+    warmup_subsystems()
     logger.info("OpenIntel started successfully")
     yield
     logger.info("OpenIntel shutting down...")
+    from src.app.infrastructure.http_client import close_http_client
+
+    await close_http_client()
+
 
 
 settings = get_settings()

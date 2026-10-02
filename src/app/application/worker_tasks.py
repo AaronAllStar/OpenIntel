@@ -30,6 +30,7 @@ from src.app.domain.value_objects import Target
 from src.app.infrastructure.celery_app import celery_app
 from src.app.infrastructure.database import SessionLocal
 from src.app.infrastructure.logging import logger
+from src.app.infrastructure.metrics import metrics
 from src.app.infrastructure.models import InvestigationModel
 from src.app.infrastructure.redis_bus import publish_event_sync
 
@@ -139,6 +140,7 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
             match event:
                 case EngineStatusEvent(engine=eng, status=st, duration_ms=dur, error=err):
                     engine_statuses[eng] = st
+                    metrics.inc_adapter_run(eng, st, dur / 1000.0)
                     publish_event_sync(investigation_id_str, {
                         "type": "engine_status",
                         "engine": eng,
@@ -146,6 +148,7 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
                         "duration_ms": dur,
                         "error": err,
                     })
+
 
                 case ProgressEvent(step=s, pct=p):
                     publish_event_sync(investigation_id_str, {
