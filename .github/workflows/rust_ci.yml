@@ -44,6 +44,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Python virtual environment
+        run: |
+          python -m venv .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
+          echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> $GITHUB_ENV
+
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
         with:
@@ -58,8 +64,8 @@ jobs:
       - name: Install sqlx-cli and maturin
         run: |
           cargo install sqlx-cli --no-default-features --features postgres,native-tls
-          python -m pip install --upgrade pip
-          python -m pip install maturin pytest pytest-asyncio
+          pip install --upgrade pip
+          pip install maturin pytest pytest-asyncio
 
       - name: Initialize PostgreSQL database schema
         run: |
@@ -82,10 +88,10 @@ jobs:
 
       - name: Build and install PyO3 extension
         run: |
-          maturin build --release -m crates/openintel-core/Cargo.toml --out dist -i python
-          python -m pip install dist/*.whl
+          maturin develop --release -m crates/openintel-core/Cargo.toml
+          python -c "import openintel_core; print('Successfully loaded openintel_core:', openintel_core.postgres_engine_info())"
 
       - name: Run Python integration tests and benchmarks
         run: |
-          python -m pip install -e ".[dev]"
-          python -m pytest tests/test_rust_id_validation.py -v
+          pip install -e ".[dev]"
+          pytest tests/test_rust_id_validation.py -v
