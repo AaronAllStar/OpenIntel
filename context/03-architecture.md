@@ -1,4 +1,4 @@
-﻿# OpenIntel — Architecture
+# OpenIntel — Architecture
 
 ## Purpose
 Concrete decisions that implement the principles in AGENTS.md.

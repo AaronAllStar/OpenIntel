@@ -1,4 +1,4 @@
-﻿# OpenIntel — Adapter Contract
+# OpenIntel — Adapter Contract
 
 ## Purpose
 Every OSINT engine is wrapped by exactly one adapter that satisfies this contract.

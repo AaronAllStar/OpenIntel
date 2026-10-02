@@ -1,4 +1,4 @@
-﻿# OpenIntel — Testing
+# OpenIntel — Testing
 
 ## Philosophy
 Tests exist to let you change the code without fear.
