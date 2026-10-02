@@ -306,52 +306,111 @@ class InvestigationService:
     def export_report_markdown(db: Session, investigation_id: UUID) -> str:
         detail = InvestigationService.get_investigation_detail(db, investigation_id)
 
+        entities = detail.get("entities", [])
+        relationships = detail.get("relationships", [])
+        evidence = detail.get("evidence", [])
+
+        # Intelligence metrics computation
+        conf_counts = defaultdict(int)
+        for e in entities:
+            conf_counts[e.get("confidence", "UNKNOWN")] += 1
+
+        kind_counts = defaultdict(int)
+        for e in entities:
+            kind_counts[e.get("kind", "UNKNOWN")] += 1
+
+        class_counts = defaultdict(int)
+        tools_used = set()
+        for ev in evidence:
+            class_counts[ev.get("info_classification", "PUBLIC_OBSERVATION")] += 1
+            tools_used.add(ev.get("tool", "unknown"))
+
+        inferred_rels = sum(1 for r in relationships if r.get("reasoning", "").startswith("Automated Bayesian Linkage"))
+
         lines = [
-            f"# OpenIntel Investigation Report: {detail['name']}",
+            f"# OpenIntel Intelligence Report: {detail['name']}",
             "",
-            "## Summary",
+            "## 1. Executive Summary",
+            f"- **Investigation ID**: `{detail['id']}`",
             f"- **Target**: `{detail['target_value']}` ({detail['target_kind']})",
-            f"- **Type**: `{detail['type']}`",
-            f"- **Status**: `{detail['status']}`",
-            f"- **Date**: {detail['created_at']}",
-            f"- **Total Entities**: {len(detail['entities'])}",
-            f"- **Total Evidence Items**: {len(detail['evidence'])}",
-            f"- **Total Relationships**: {len(detail['relationships'])}",
+            f"- **Type**: `{detail['type']}` | **Status**: `{detail['status']}`",
+            f"- **Execution Timestamp**: {detail['created_at']}",
+            f"- **Total Engines Deployed**: {len(tools_used)} ({', '.join(sorted(tools_used)) if tools_used else 'None'})",
+            f"- **Total Entities Discovered**: {len(entities)}",
+            f"- **Correlated Relationships**: {len(relationships)} (Bayesian Inferences: {inferred_rels})",
+            f"- **Evidence Provenance Audit Count**: {len(evidence)}",
             "",
-            "## Discovered Entities",
-            "| Kind | Value | Confidence |",
+            "## 2. Intelligence & Bayesian Confidence Metrics",
+            "| Metric | Count | Distribution |",
             "|---|---|---|",
         ]
 
-        for e in detail["entities"]:
-            lines.append(f"| {e['kind']} | `{e['value']}` | {e['confidence']} |")
+        total_entities_num = max(1, len(entities))
+        for level in ("STRONG", "OBSERVED", "SUPPORTED", "POTENTIAL"):
+            c = conf_counts.get(level, 0)
+            pct = (c / total_entities_num) * 100
+            lines.append(f"| Confidence: `{level}` | {c} | {pct:.1f}% |")
 
         lines.extend([
             "",
-            "## Relationships",
-            "| Subject ID | Predicate | Object ID | Confidence | Reasoning |",
+            "## 3. Legal & Regulatory Classifications",
+            "| Classification | Evidence Records | Regulatory Description |",
+            "|---|---|---|",
+        ])
+
+        class_descriptions = {
+            "PUBLIC_OBSERVATION": "Direct public crawl without platform authentication or barrier bypass.",
+            "PUBLIC_REGISTRY": "Official open public government / registrars / DNS databases.",
+            "PLATFORM_SIGNAL": "Platform-specific signal or direct platform API observation.",
+            "PLATFORM_RESTRICTED": "Authenticated session or platform-specific data extraction.",
+            "CONFIDENTIAL_INTEL": "Proprietary or sensitive threat intelligence feeds.",
+            "INFERENCE": "Algorithmic correlation derived via Bayesian rule inference engine.",
+        }
+
+
+        for cls_name, desc in class_descriptions.items():
+            cnt = class_counts.get(cls_name, 0)
+            lines.append(f"| `{cls_name}` | {cnt} | {desc} |")
+
+        lines.extend([
+            "",
+            "## 4. Entity Discovered Catalog",
+            "| Kind | Value | Confidence | First Seen |",
+            "|---|---|---|---|",
+        ])
+
+        for e in entities:
+            lines.append(f"| `{e['kind']}` | `{e['value']}` | {e['confidence']} | {e.get('first_seen', 'N/A')} |")
+
+        lines.extend([
+            "",
+            "## 5. Correlated Relationships & Link Analysis",
+            "| Subject ID | Predicate | Object ID | Confidence | Linkage Reasoning |",
             "|---|---|---|---|---|",
         ])
 
-        for r in detail["relationships"]:
-            lines.append(f"| `{r['source_entity_id'][:8]}` | {r['predicate']} | `{r['target_entity_id'][:8]}` | {r['confidence']} | {r['reasoning']} |")
+        for r in relationships:
+            src_short = r['source_entity_id'][:8]
+            tgt_short = r['target_entity_id'][:8]
+            lines.append(f"| `{src_short}` | **{r['predicate']}** | `{tgt_short}` | {r['confidence']} | {r['reasoning']} |")
 
         lines.extend([
             "",
-            "## Evidence Provenance & Classification",
-            "| Source | Tool | Classification | Confidence | Timestamp | Raw Observation |",
-            "|---|---|---|---|---|---|",
+            "## 6. Full Evidence Provenance Audit Log",
+            "| Source | Tool | Classification | Confidence | Observation Preview |",
+            "|---|---|---|---|---|",
         ])
 
-        for ev in detail["evidence"]:
-            obs_preview = ev["raw_observation"].replace("\n", " ")[:80]
+        for ev in evidence:
+            obs_preview = ev["raw_observation"].replace("\n", " ").replace("|", "\\|")[:90]
             classification = ev.get("info_classification", "PUBLIC_OBSERVATION")
-            lines.append(f"| {ev['source']} | {ev['tool']} | `{classification}` | {ev['confidence']} | {ev['timestamp']} | `{obs_preview}` |")
+            lines.append(f"| {ev['source']} | `{ev['tool']}` | `{classification}` | {ev['confidence']} | `{obs_preview}` |")
 
         lines.extend([
             "",
             "---",
-            "*Generated by OpenIntel*",
+            "*Report certified by OpenIntel Autonomous OSINT Platform*",
         ])
 
         return "\n".join(lines)
+

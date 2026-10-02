@@ -14,12 +14,43 @@ DOMAIN_REGEX = re.compile(
 )
 
 
+DANGEROUS_CMD_CHARS = re.compile(r"[\x00\r\n;|<>&`$]")
+BLOCKED_HOSTNAMES = frozenset({
+    "localhost",
+    "metadata.google.internal",
+    "instance-data",
+    "metadata",
+})
+BLOCKED_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home", ".corp", ".arpa")
+CARRIER_GRADE_NAT = ipaddress.ip_network("100.64.0.0/10")
+
+
 def _is_private_ip(ip_str: str) -> bool:
     try:
-        ip = ipaddress.ip_address(ip_str)
-        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+        clean_ip = ip_str.strip("[]")
+        ip = ipaddress.ip_address(clean_ip)
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_unspecified
+            or ip.is_multicast
+            or (isinstance(ip, ipaddress.IPv4Address) and ip in CARRIER_GRADE_NAT)
+        )
     except ValueError:
         return False
+
+
+def _is_blocked_host(host_str: str) -> bool:
+    host_lower = host_str.lower().strip(".")
+    if host_lower in BLOCKED_HOSTNAMES:
+        return True
+    if any(host_lower.endswith(suffix) for suffix in BLOCKED_SUFFIXES):
+        return True
+    return _is_private_ip(host_lower)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +63,12 @@ class Target:
         trimmed = self.value.strip()
         if not trimmed:
             raise TargetValidationError("Target value cannot be empty")
+
+        # Global command injection guardrail across all target types
+        if DANGEROUS_CMD_CHARS.search(trimmed):
+            raise TargetValidationError(
+                f"Target value '{trimmed}' contains illegal control or shell metacharacters"
+            )
 
         match self.kind:
             case TargetKind.USERNAME:
@@ -54,6 +91,11 @@ class Target:
                 if len(encoded) > 253 or not DOMAIN_REGEX.match(encoded):
                     raise TargetValidationError(f"Invalid domain '{trimmed}'")
 
+                if not self.allow_private and _is_blocked_host(encoded):
+                    raise TargetValidationError(
+                        f"SSRF Protection: Target domain '{trimmed}' is in a private network or blocked domain"
+                    )
+
             case TargetKind.URL:
                 try:
                     parsed = urllib.parse.urlparse(trimmed)
@@ -67,20 +109,19 @@ class Target:
                     raise TargetValidationError("URL must include a valid host network location")
 
                 host = parsed.hostname or ""
-                if not self.allow_private and _is_private_ip(host):
+                if not self.allow_private and _is_blocked_host(host):
                     raise TargetValidationError(
                         f"SSRF Protection: Target URL host '{host}' is in a private network range"
                     )
 
             case TargetKind.IP:
                 try:
-                    ip = ipaddress.ip_address(trimmed)
+                    clean_ip = trimmed.strip("[]")
+                    ipaddress.ip_address(clean_ip)
                 except ValueError as exc:
                     raise TargetValidationError(f"Invalid IP address '{trimmed}'") from exc
 
-                if not self.allow_private and (
-                    ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-                ):
+                if not self.allow_private and _is_private_ip(trimmed):
                     raise TargetValidationError(
                         f"SSRF Protection: Target IP '{trimmed}' is in a private network range"
                     )
@@ -135,20 +176,13 @@ class Target:
                     raise TargetValidationError(
                         "Person name must be between 2 and 100 characters"
                     )
-                if re.search(r"[;|<>&`$]", trimmed):
-                    raise TargetValidationError(
-                        f"Person name '{trimmed}' contains invalid characters"
-                    )
 
             case TargetKind.LOCATION:
                 if len(trimmed) < 2 or len(trimmed) > 120:
                     raise TargetValidationError(
                         "Location must be between 2 and 120 characters"
                     )
-                if re.search(r"[;|<>&`$]", trimmed):
-                    raise TargetValidationError(
-                        f"Location '{trimmed}' contains invalid characters"
-                    )
+
 
 
 @dataclass(frozen=True, slots=True)

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ALLOW_PRIVATE_TARGETS: bool = False
     ADAPTER_TIMEOUT_MS: int = 30_000
     MAX_RESULTS_PER_ADAPTER: int = 500
+    RATE_LIMIT_ENABLED: bool = True
 
     # Persistence & Queues
     DATABASE_URL: str = (
