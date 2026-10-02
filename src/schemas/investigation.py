@@ -71,6 +71,7 @@ class InvestigationDetailResponse(BaseModel):
     started_at: str | None
     finished_at: str | None
     settings: dict[str, Any]
+    engine_statuses: dict[str, str] = Field(default_factory=dict)
     error_message: str | None
     entities: list[EntityResponse]
     evidence: list[EvidenceResponse]

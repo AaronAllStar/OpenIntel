@@ -67,7 +67,22 @@ class ErrorEvent:
     error: AdapterError
 
 
-AdapterEvent = ProgressEvent | EntityEvent | RelationshipEvent | LogEvent | ErrorEvent
+@dataclass(frozen=True, slots=True)
+class EngineStatusEvent:
+    engine: str
+    status: Literal["ok", "timeout", "error", "skipped", "cancelled"]
+    duration_ms: float
+    error: str | None = None
+
+
+AdapterEvent = (
+    ProgressEvent
+    | EntityEvent
+    | RelationshipEvent
+    | LogEvent
+    | ErrorEvent
+    | EngineStatusEvent
+)
 
 
 @dataclass(frozen=True, slots=True)

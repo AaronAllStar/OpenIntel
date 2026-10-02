@@ -6,12 +6,22 @@ from src.app.infrastructure.models import EntityModel, EvidenceModel, Relationsh
 
 
 class EntityNormalizer:
-    """Normalizes, deduplicates, and creates associations for discovered OSINT data."""
+    """
+    Normalizes, deduplicates, and creates associations for discovered OSINT data.
+    Ensures relational consistency, prevents duplicate edges, and manages entity lookups.
+    """
 
     def __init__(self, investigation_id: UUID) -> None:
         self.investigation_id = investigation_id
         # Map (kind, value.lower()) -> EntityModel
         self.entity_registry: dict[tuple[str, str], EntityModel] = {}
+        # Map entity_id -> EntityModel
+        self.entities_by_id: dict[UUID, EntityModel] = {}
+        # Set of (source_id, predicate, target_id) to avoid duplicate edges
+        self.relationship_keys: set[tuple[UUID, str, UUID]] = set()
+
+    def get_entity_by_id(self, entity_id: UUID) -> EntityModel | None:
+        return self.entities_by_id.get(entity_id)
 
     def normalize_entity(self, draft: EntityDraft) -> tuple[EntityModel, bool]:
         """
@@ -37,6 +47,7 @@ class EntityNormalizer:
             attributes=draft.attributes or {},
         )
         self.entity_registry[key] = new_entity
+        self.entities_by_id[new_entity.id] = new_entity
         return new_entity, True
 
     def create_evidence(
@@ -59,36 +70,53 @@ class EntityNormalizer:
     def normalize_relationship(
         self,
         draft: RelationshipDraft,
-    ) -> RelationshipModel | None:
+    ) -> tuple[RelationshipModel | None, list[EntityModel]]:
+        """
+        Normalizes relationship and returns (rel_model, newly_created_entities).
+        The returned entities must be added to the database session before committing rel_model.
+        """
         source_key = (draft.source_entity_kind.value, draft.source_entity_value.strip().lower())
         target_key = (draft.target_entity_kind.value, draft.target_entity_value.strip().lower())
 
+        new_entities: list[EntityModel] = []
+
         # Ensure both entities exist in the registry
         if source_key not in self.entity_registry:
-            self.normalize_entity(
+            source_ent, is_new = self.normalize_entity(
                 EntityDraft(
                     kind=draft.source_entity_kind,
                     value=draft.source_entity_value.strip(),
                     confidence=ConfidenceLevel.OBSERVED,
                 )
             )
+            if is_new:
+                new_entities.append(source_ent)
 
         if target_key not in self.entity_registry:
-            self.normalize_entity(
+            target_ent, is_new = self.normalize_entity(
                 EntityDraft(
                     kind=draft.target_entity_kind,
                     value=draft.target_entity_value.strip(),
                     confidence=ConfidenceLevel.OBSERVED,
                 )
             )
+            if is_new:
+                new_entities.append(target_ent)
 
         source_entity = self.entity_registry[source_key]
         target_entity = self.entity_registry[target_key]
 
         if source_entity.id == target_entity.id:
-            return None
+            return None, new_entities
 
-        return RelationshipModel(
+        edge_key = (source_entity.id, draft.predicate, target_entity.id)
+        if edge_key in self.relationship_keys:
+            # Duplicate relationship edge, deduplicate
+            return None, new_entities
+
+        self.relationship_keys.add(edge_key)
+
+        rel = RelationshipModel(
             id=uuid4(),
             investigation_id=self.investigation_id,
             source_entity_id=source_entity.id,
@@ -98,3 +126,4 @@ class EntityNormalizer:
             reasoning=draft.reasoning
             or f"Relationship discovered between {source_entity.value} and {target_entity.value}",
         )
+        return rel, new_entities

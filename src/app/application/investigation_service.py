@@ -49,6 +49,9 @@ class InvestigationService:
 
         # Dispatch execution
         inv_id_str = str(inv.id)
+        from src.app.application.cancellation_manager import cancellation_manager
+        cancellation_manager.get_or_create(inv_id_str)
+
         from src.app.infrastructure.config import get_settings
         current_settings = get_settings()
 
@@ -114,6 +117,7 @@ class InvestigationService:
             "started_at": inv.started_at.isoformat() if inv.started_at else None,
             "finished_at": inv.finished_at.isoformat() if inv.finished_at else None,
             "settings": inv.settings,
+            "engine_statuses": (inv.settings or {}).get("engine_statuses", {}),
             "error_message": inv.error_message,
             "entities": [
                 {
@@ -161,6 +165,10 @@ class InvestigationService:
         )
         if not inv:
             raise InvestigationNotFoundError(f"Investigation {investigation_id} not found")
+
+        # Trigger in-flight cancellation across workers and subprocesses
+        from src.app.application.cancellation_manager import cancellation_manager
+        cancellation_manager.cancel(str(investigation_id))
 
         if inv.status in (InvestigationStatus.PENDING.value, InvestigationStatus.RUNNING.value, InvestigationStatus.WORKING.value):
             inv.status = InvestigationStatus.CANCELLED.value
