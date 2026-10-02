@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # Persistence & Queues (PostgreSQL only)
     DATABASE_URL: str = (
-        "postgresql+psycopg://openintel:openintel_pass@127.0.0.1:5432/openintel"
+        "postgresql+psycopg://openintel:openintel_secure_pass@127.0.0.1:5432/openintel"
     )
     REDIS_URL: str = "redis://127.0.0.1:6379/0"
 
