@@ -31,7 +31,6 @@ RUN pip3 install --no-cache-dir --break-system-packages maturin
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
-COPY openintel.sql ./
 
 RUN maturin build --release -m crates/openintel-core/Cargo.toml --out /rust-build/wheels
 
@@ -62,8 +61,8 @@ RUN uv pip install --system --no-cache -e .
 # Copy built frontend static assets from Stage 1 into FastAPI's static directory
 COPY --from=frontend-builder /build/dist /app/src/ui/dist
 
-# Copy PostgreSQL schema file
-COPY openintel.sql /app/openintel.sql
+# Copy PostgreSQL schema file (using tracked example schema so builds succeed on clean clones)
+COPY examples/openintel_schema_example.sql /app/openintel.sql
 
 # Create unprivileged runtime user and data directories
 RUN groupadd -g 10001 openintel && \

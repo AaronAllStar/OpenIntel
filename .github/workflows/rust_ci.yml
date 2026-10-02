@@ -62,7 +62,13 @@ jobs:
 
       - name: Initialize PostgreSQL database schema
         run: |
-          PGPASSWORD=openintel_secure_password psql -h localhost -U openintel -d openintel_test -f openintel.sql
+          if [ -f "openintel.sql" ]; then
+            SCHEMA_FILE="openintel.sql"
+          else
+            SCHEMA_FILE="examples/openintel_schema_example.sql"
+          fi
+          echo "Using schema file: $SCHEMA_FILE"
+          PGPASSWORD=openintel_secure_password psql -h localhost -U openintel -d openintel_test -f "$SCHEMA_FILE"
 
       - name: Check Rust formatting
         run: cargo fmt --check

@@ -27,17 +27,28 @@ pub async fn create_pg_pool(database_url: &str, max_connections: u32) -> Result<
 
 /// Runs PostgreSQL database schema initialization.
 pub async fn run_migrations(pool: &PgPool) -> Result<(), DbError> {
-    let schema_sql = match std::fs::read_to_string("openintel.sql") {
-        Ok(sql) => sql,
-        Err(_) => match std::fs::read_to_string("../../openintel.sql") {
-            Ok(sql) => sql,
-            Err(e) => {
-                return Err(DbError::MigrationError(format!(
-                    "Failed to read openintel.sql: {}",
-                    e
-                )))
-            }
-        },
+    let candidate_paths = [
+        "openintel.sql",
+        "../../openintel.sql",
+        "examples/openintel_schema_example.sql",
+        "../../examples/openintel_schema_example.sql",
+    ];
+
+    let mut schema_sql = None;
+    for path in candidate_paths {
+        if let Ok(sql) = std::fs::read_to_string(path) {
+            schema_sql = Some(sql);
+            break;
+        }
+    }
+
+    let schema_sql = match schema_sql {
+        Some(sql) => sql,
+        None => {
+            return Err(DbError::MigrationError(
+                "Failed to find schema file (checked openintel.sql and examples/openintel_schema_example.sql)".to_string(),
+            ))
+        }
     };
 
     sqlx::raw_sql(&schema_sql)
