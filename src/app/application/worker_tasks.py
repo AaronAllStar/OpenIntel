@@ -7,13 +7,21 @@ from sqlalchemy.orm import Session
 from src.adapters.osint_executor import execute_adapters, get_adapters_for_target
 from src.app.application.cancellation_manager import cancellation_manager
 from src.app.application.normalizer import EntityNormalizer
-from src.app.domain.enums import InvestigationStatus, TargetKind
+from src.app.domain.enums import (
+    ConfidenceLevel,
+    EntityKind,
+    InfoClassification,
+    InvestigationStatus,
+    TargetKind,
+)
 from src.app.domain.ports.adapter import (
     AdapterInput,
     AdapterOptions,
     EngineStatusEvent,
+    EntityDraft,
     EntityEvent,
     ErrorEvent,
+    EvidenceDraft,
     LogEvent,
     ProgressEvent,
     RelationshipEvent,
@@ -91,6 +99,33 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
 
         normalizer = EntityNormalizer(investigation_id)
 
+        # Guarantee root target entity exists with initial provenance evidence
+        target_kind_val = target_obj.kind.value
+        entity_kind_match = next((k for k in EntityKind if k.value == target_kind_val), EntityKind.PROFILE)
+        target_draft = EntityDraft(
+            kind=entity_kind_match,
+            value=target_obj.value,
+            confidence=ConfidenceLevel.OBSERVED,
+            attributes={"is_target": True, "target_kind": target_kind_val},
+        )
+        target_ent, is_new_target = normalizer.normalize_entity(target_draft)
+        if is_new_target:
+            db.add(target_ent)
+            db.flush()
+            target_ev = normalizer.create_evidence(
+                EvidenceDraft(
+                    source="Investigation Target Definition",
+                    tool="system",
+                    raw_observation=f"Investigation root target configured: {target_obj.value} ({target_kind_val})",
+                    confidence=ConfidenceLevel.OBSERVED,
+                    info_classification=InfoClassification.PUBLIC_OBSERVATION,
+                    metadata={"target_kind": target_kind_val},
+                ),
+                entity_id=target_ent.id,
+            )
+            db.add(target_ev)
+            db.commit()
+
         async for event in execute_adapters(
             adapters=adapters,
             adapter_input=adapter_input,
@@ -153,11 +188,19 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
                     # Ensure any auto-created endpoints are persisted prior to relationship
                     for new_ent in new_entities:
                         db.add(new_ent)
+                        # Attach discovery evidence to newly formed endpoint nodes
+                        ent_ev = normalizer.create_evidence(ev, entity_id=new_ent.id)
+                        db.add(ent_ev)
                     if new_entities:
                         db.flush()
 
                     if rel_model:
                         db.add(rel_model)
+                        db.flush()
+
+                        # Explicitly attach provenance evidence to relationship edge
+                        rel_ev = normalizer.create_evidence(ev, relationship_id=rel_model.id)
+                        db.add(rel_ev)
                         db.commit()
 
                         publish_event_sync(investigation_id_str, {
@@ -169,6 +212,13 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
                                 "predicate": rel_model.predicate,
                                 "confidence": rel_model.confidence,
                                 "reasoning": rel_model.reasoning,
+                            },
+                            "evidence": {
+                                "id": str(rel_ev.id),
+                                "source": rel_ev.source,
+                                "tool": rel_ev.tool,
+                                "confidence": rel_ev.confidence,
+                                "info_classification": rel_ev.info_classification,
                             },
                         })
 
@@ -204,6 +254,16 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
                     "message": "Investigation cancelled by user request",
                 })
             else:
+                # Run correlation and Bayesian confidence scoring pass
+                publish_event_sync(investigation_id_str, {
+                    "type": "progress",
+                    "step": "Correlating multi-source intelligence & evidence graph...",
+                    "pct": 95.0,
+                })
+                from src.app.application.correlation_engine import CorrelationEngine
+                corr = CorrelationEngine(db=db, investigation_id=investigation_id)
+                corr_res = corr.run_correlation()
+
                 inv.status = InvestigationStatus.REVIEW.value
                 inv.finished_at = datetime.now(UTC)
                 db.commit()
@@ -211,6 +271,7 @@ async def execute_investigation_async(investigation_id_str: str) -> None:
                     "type": "completed",
                     "status": InvestigationStatus.REVIEW.value,
                     "engine_statuses": engine_statuses,
+                    "correlation": corr_res,
                     "message": "Investigation completed and ready for review",
                 })
 

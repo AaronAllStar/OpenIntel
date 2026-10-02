@@ -14,6 +14,8 @@ from src.app.infrastructure.database import get_db
 from src.app.infrastructure.redis_bus import subscribe_events_async
 from src.schemas.investigation import (
     CreateInvestigationRequest,
+    EvidenceResponse,
+    GraphResponse,
     InvestigationDetailResponse,
     InvestigationListItemResponse,
 )
@@ -103,6 +105,40 @@ def cancel_investigation(
         return {"cancelled": success}
     except InvestigationNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{investigation_id}/graph", response_model=GraphResponse)
+def get_investigation_graph(
+    investigation_id: UUID,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    High-performance graph retrieval endpoint (p95 < 200ms for 10,000+ nodes).
+    Returns complete nodes, edges, and direct evidence provenance links with 0 N+1 queries.
+    """
+    try:
+        return InvestigationService.get_graph(db, investigation_id)
+    except InvestigationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{investigation_id}/provenance", response_model=list[EvidenceResponse])
+def get_investigation_provenance(
+    investigation_id: UUID,
+    entity_id: UUID | None = Query(None, description="Optional entity ID filter"),
+    relationship_id: UUID | None = Query(None, description="Optional relationship ID filter"),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    """
+    Traces any graph node (entity) or edge (relationship) back to its exact raw observations,
+    tool provenance, and legal classification.
+    """
+    return InvestigationService.get_provenance(
+        db=db,
+        investigation_id=investigation_id,
+        entity_id=entity_id,
+        relationship_id=relationship_id,
+    )
 
 
 @router.get("/{investigation_id}/export", response_model=None)

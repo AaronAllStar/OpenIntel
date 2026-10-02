@@ -40,7 +40,8 @@ class EntityResponse(BaseModel):
 
 class EvidenceResponse(BaseModel):
     id: str
-    entity_id: str | None
+    entity_id: str | None = None
+    relationship_id: str | None = None
     source: str
     tool: str
     timestamp: str | None
@@ -76,3 +77,31 @@ class InvestigationDetailResponse(BaseModel):
     entities: list[EntityResponse]
     evidence: list[EvidenceResponse]
     relationships: list[RelationshipResponse]
+
+
+class GraphNode(BaseModel):
+    id: str
+    kind: str
+    value: str
+    confidence: str
+    confidence_score: float | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class GraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    predicate: str
+    confidence: str
+    confidence_score: float | None = None
+    reasoning: str = ""
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class GraphResponse(BaseModel):
+    investigation_id: UUID
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+    stats: dict[str, Any] = Field(default_factory=dict)

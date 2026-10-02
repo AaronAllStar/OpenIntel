@@ -67,9 +67,16 @@ class EntityModel(Base):
     investigation: Mapped["InvestigationModel"] = relationship(
         "InvestigationModel", back_populates="entities"
     )
+    evidence: Mapped[list["EvidenceModel"]] = relationship(
+        "EvidenceModel",
+        back_populates="entity",
+        cascade="all, delete-orphan",
+        foreign_keys="EvidenceModel.entity_id",
+    )
 
     __table_args__ = (
         Index("ix_entities_inv_kind_val", "investigation_id", "kind", "value"),
+        Index("ix_entities_inv_id", "investigation_id", "id"),
     )
 
 
@@ -83,6 +90,9 @@ class EvidenceModel(Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("entities.id", ondelete="SET NULL"), nullable=True
     )
+    relationship_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("relationships.id", ondelete="SET NULL"), nullable=True
+    )
     source: Mapped[str] = mapped_column(String(255), nullable=False)
     tool: Mapped[str] = mapped_column(String(100), nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
@@ -94,9 +104,19 @@ class EvidenceModel(Base):
     investigation: Mapped["InvestigationModel"] = relationship(
         "InvestigationModel", back_populates="evidence"
     )
+    entity: Mapped["EntityModel | None"] = relationship(
+        "EntityModel", back_populates="evidence", foreign_keys=[entity_id]
+    )
+    relationship: Mapped["RelationshipModel | None"] = relationship(
+        "RelationshipModel", back_populates="evidence", foreign_keys=[relationship_id]
+    )
 
     __table_args__ = (
         Index("ix_evidence_inv_tool", "investigation_id", "tool"),
+        Index("ix_evidence_inv_entity", "investigation_id", "entity_id"),
+        Index("ix_evidence_inv_rel", "investigation_id", "relationship_id"),
+        Index("ix_evidence_entity_id", "entity_id"),
+        Index("ix_evidence_relationship_id", "relationship_id"),
     )
 
 
@@ -121,7 +141,15 @@ class RelationshipModel(Base):
     investigation: Mapped["InvestigationModel"] = relationship(
         "InvestigationModel", back_populates="relationships"
     )
+    evidence: Mapped[list["EvidenceModel"]] = relationship(
+        "EvidenceModel",
+        back_populates="relationship",
+        cascade="all, delete-orphan",
+        foreign_keys="EvidenceModel.relationship_id",
+    )
 
     __table_args__ = (
         Index("ix_relationships_inv_entities", "investigation_id", "source_entity_id", "target_entity_id"),
+        Index("ix_relationships_source", "source_entity_id"),
+        Index("ix_relationships_target", "target_entity_id"),
     )

@@ -54,11 +54,13 @@ class EntityNormalizer:
         self,
         draft: EvidenceDraft,
         entity_id: UUID | None = None,
+        relationship_id: UUID | None = None,
     ) -> EvidenceModel:
         return EvidenceModel(
             id=uuid4(),
             investigation_id=self.investigation_id,
             entity_id=entity_id,
+            relationship_id=relationship_id,
             source=draft.source,
             tool=draft.tool,
             raw_observation=draft.raw_observation,
