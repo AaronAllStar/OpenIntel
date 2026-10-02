@@ -4,14 +4,34 @@ import shutil
 import signal
 import subprocess
 import sys
+from abc import ABC
+
+from src.app.domain.ports.adapter import BaseAdapter, HealthStatus
 
 
-class BaseSubprocessAdapter:
+class BaseSubprocessAdapter(BaseAdapter, ABC):
     """Helper base class for OSINT adapters executing CLI subprocesses safely."""
 
     @staticmethod
     def is_binary_available(binary_name: str) -> bool:
         return shutil.which(binary_name) is not None
+
+    def health_check(self) -> HealthStatus:
+        binary = getattr(self, "binary_name", self.name)
+        available = self.is_binary_available(binary)
+        if available:
+            return HealthStatus(
+                is_healthy=True,
+                status="ready",
+                message=f"Binary '{binary}' is installed and accessible in PATH",
+                details={"binary": binary, "path": shutil.which(binary), "version": self.version},
+            )
+        return HealthStatus(
+            is_healthy=True,  # Still operable via standalone fallback
+            status="degraded",
+            message=f"Binary '{binary}' is not installed; running in standalone fallback mode",
+            details={"binary": binary, "fallback": True, "version": self.version},
+        )
 
     @staticmethod
     async def _kill_process_tree(proc: asyncio.subprocess.Process) -> None:

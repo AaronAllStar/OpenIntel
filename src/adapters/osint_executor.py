@@ -2,34 +2,8 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Sequence
 
-from src.adapters.amass.adapter import AmassAdapter
-from src.adapters.bellingcat.adapter import BellingcatTelegramAdapter
-from src.adapters.blackbird.adapter import BlackbirdAdapter
 from src.adapters.circuit_breaker import get_circuit_breaker
-from src.adapters.crosslinked.adapter import CrossLinkedAdapter
-from src.adapters.dnstwist.adapter import DNSTwistAdapter
-from src.adapters.email_enrich.adapter import EmailEnrichAdapter
-from src.adapters.email_finder.adapter import EmailFinderAdapter
-from src.adapters.ghunt.adapter import GHuntAdapter
-from src.adapters.h8mail.adapter import H8mailAdapter
-from src.adapters.holehe.adapter import HoleheAdapter
-from src.adapters.id_validation.adapter import IdValidationAdapter
-from src.adapters.ignorant.adapter import IgnorantAdapter
-from src.adapters.instaloader.adapter import InstaloaderAdapter
-from src.adapters.maigret.adapter import MaigretAdapter
-from src.adapters.metagoofil.adapter import MetagoofilAdapter
-from src.adapters.octosuite.adapter import OctoSuiteAdapter
-from src.adapters.phoneinfoga.adapter import PhoneInfogaAdapter
-from src.adapters.photon.adapter import PhotonAdapter
-from src.adapters.recon_ng.adapter import ReconNgAdapter
-from src.adapters.searchphone.adapter import SearchPhoneAdapter
-from src.adapters.sherlock.adapter import SherlockAdapter
-from src.adapters.socialscan.adapter import SocialscanAdapter
-from src.adapters.spiderfoot.adapter import SpiderFootAdapter
-from src.adapters.the_harvester.adapter import TheHarvesterAdapter
-from src.adapters.trufflehog.adapter import TruffleHogAdapter
-from src.adapters.twikit.adapter import TwikitAdapter
-from src.adapters.whatsapp.adapter import WhatsAppAdapter
+from src.adapters.registry import get_adapter_registry
 from src.app.domain.enums import TargetKind
 from src.app.domain.ports.adapter import (
     AdapterEvent,
@@ -37,42 +11,6 @@ from src.app.domain.ports.adapter import (
     EngineStatusEvent,
     LogEvent,
     OsintAdapter,
-)
-
-ALL_ADAPTERS: tuple[OsintAdapter, ...] = (
-    # Core & discovery engines
-    SherlockAdapter(),
-    MaigretAdapter(),
-    TheHarvesterAdapter(),
-    SpiderFootAdapter(),
-    PhotonAdapter(),
-    ReconNgAdapter(),
-    AmassAdapter(),
-    PhoneInfogaAdapter(),
-    MetagoofilAdapter(),
-    # Extended username, profile & repository intelligence
-    BlackbirdAdapter(),
-    SocialscanAdapter(),
-    OctoSuiteAdapter(),
-    TwikitAdapter(),
-    InstaloaderAdapter(),
-    # Extended email & identity signal adapters
-    HoleheAdapter(),
-    GHuntAdapter(),
-    H8mailAdapter(),
-    EmailEnrichAdapter(),
-    EmailFinderAdapter(),
-    # Extended phone & telecom intelligence
-    BellingcatTelegramAdapter(),
-    IgnorantAdapter(),
-    SearchPhoneAdapter(),
-    WhatsAppAdapter(),
-    # Network, domain & web intelligence
-    DNSTwistAdapter(),
-    CrossLinkedAdapter(),
-    TruffleHogAdapter(),
-    # Legal registry & national ID checksum validator
-    IdValidationAdapter(),
 )
 
 # Automated orchestration table based on user specification:
@@ -112,21 +50,32 @@ def get_adapters_for_target(
 ) -> list[OsintAdapter]:
     """
     Intelligently decides which tools are appropriate based on TargetKind
-    or user-selected overrides.
+    or user-selected overrides, querying the dynamic AdapterRegistry.
     """
+    registry = get_adapter_registry()
+    all_adapters = registry.list_all()
+
     if selected_engines and len(selected_engines) > 0:
         selected_set = {e.lower().replace("-", "_") for e in selected_engines}
-        return [a for a in ALL_ADAPTERS if a.name in selected_set and target_kind in a.supported_targets]
+        return [a for a in all_adapters if a.name in selected_set and target_kind in a.supported_targets]
 
     # Automated intelligent default orchestration
     recommended_engine_names = set(DEFAULT_ORCHESTRATION.get(target_kind, ()))
-    applicable = [a for a in ALL_ADAPTERS if a.name in recommended_engine_names and target_kind in a.supported_targets]
+    applicable = [a for a in all_adapters if a.name in recommended_engine_names and target_kind in a.supported_targets]
 
     # If none found via default table, fallback to any matching supported target
     if not applicable:
-        applicable = [a for a in ALL_ADAPTERS if target_kind in a.supported_targets]
+        applicable = [a for a in all_adapters if target_kind in a.supported_targets]
 
     return applicable
+
+
+# Backward-compatibility accessor
+def _get_all_adapters() -> tuple[OsintAdapter, ...]:
+    return tuple(get_adapter_registry().list_all())
+
+
+ALL_ADAPTERS: tuple[OsintAdapter, ...] = _get_all_adapters()
 
 
 async def execute_adapters(
